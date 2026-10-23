@@ -19,7 +19,7 @@ public class MainActivity extends Activity {
     TextView tvLog, tvStatus, tvRpm, tvMap, tvAdv, tvRowCol;
     Button btnDtr, btnRts, btnConnect, btnGetMap, btnSaveMap;
     GridLayout gridMap;
-    boolean dtrOn=false, rtsOn=false;
+    boolean dtrOn=true, rtsOn=true;
     UsbDeviceConnection conn=null;
     UsbEndpoint epIn=null, epOut=null;
     boolean isLive=false;
@@ -31,6 +31,7 @@ public class MainActivity extends Activity {
     int currentRpmBin=-1, currentMapBin=-1;
     int[] rpmBins = {500,700,900,1100,1300,1500,1800,2200,2600,3000,3500,4000,4500,5000,5750,6500};
     int[] mapBins = {20,25,30,35,40,45,50,55,60,65,70,75,80,85,92,100};
+    StringBuilder rxBuffer = new StringBuilder();
 
     @Override
     protected void onCreate(Bundle b){
@@ -53,9 +54,9 @@ public class MainActivity extends Activity {
             @Override public void onReceive(Context c, Intent i){
                 if(ACTION_USB_PERMISSION.equals(i.getAction())){
                     if(i.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED,false)){
-                        tvLog.setText("OK CONNECT");
+                        tvLog.setText("Permission OK, connect...");
                         runOnUiThread(new Runnable(){ public void run(){ connect(); } });
-                    }else tvLog.setText("No Perm");
+                    }else tvLog.setText("Permission denied!");
                 }
             }
         };
@@ -63,11 +64,12 @@ public class MainActivity extends Activity {
         if(Build.VERSION.SDK_INT>=33) registerReceiver(usbReceiver,f,Context.RECEIVER_EXPORTED);
         else registerReceiver(usbReceiver,f);
         initMapData(); buildGrid();
-        btnDtr.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ dtrOn=!dtrOn; btnDtr.setText(dtrOn?"DTR ON":"DTR OFF"); setDtrRts(); }});
-        btnRts.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ rtsOn=!rtsOn; btnRts.setText(rtsOn?"RTS ON":"RTS OFF"); setDtrRts(); }});
-        btnGetMap.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ sendGet(); }});
-        btnSaveMap.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ sendSave(); }});
-        btnConnect.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ connect(); }});
+        btnDtr.setOnClickListener(v->{ dtrOn=!dtrOn; btnDtr.setText(dtrOn?"DTR ON":"DTR OFF"); setDtrRts(); });
+        btnRts.setOnClickListener(v->{ rtsOn=!rtsOn; btnRts.setText(rtsOn?"RTS ON":"RTS OFF"); setDtrRts(); });
+        btnGetMap.setOnClickListener(v-> sendGet());
+        btnSaveMap.setOnClickListener(v-> sendSave());
+        btnConnect.setOnClickListener(v-> connect());
+        btnDtr.setText("DTR ON"); btnRts.setText("RTS ON");
     }
 
     void initMapData(){ for(int r=0;r<16;r++) for(int c=0;c<16;c++) mapData[r][c]=9; }
@@ -82,8 +84,8 @@ public class MainActivity extends Activity {
             for(int c=0;c<16;c++){
                 TextView cell=new TextView(this); cell.setText(String.valueOf(mapData[r][c])); cell.setWidth(W); cell.setHeight(H); cell.setGravity(Gravity.CENTER); cell.setBackgroundColor(0xFF111111); cell.setTextColor(0xFFFFFFFF); cell.setTextSize(18);
                 final int rr=r; final int cc=c;
-                cell.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ mapData[rr][cc]++; if(mapData[rr][cc]>45) mapData[rr][cc]=45; cellViews[rr][cc].setText(String.valueOf(mapData[rr][cc])); sendSet(rr,cc,mapData[rr][cc]); }});
-                cell.setOnLongClickListener(new android.view.View.OnLongClickListener(){ public boolean onLongClick(android.view.View v){ mapData[rr][cc]--; if(mapData[rr][cc]<0) mapData[rr][cc]=0; cellViews[rr][cc].setText(String.valueOf(mapData[rr][cc])); sendSet(rr,cc,mapData[rr][cc]); return true; }});
+                cell.setOnClickListener(v->{ mapData[rr][cc]++; if(mapData[rr][cc]>45) mapData[rr][cc]=0; cellViews[rr][cc].setText(String.valueOf(mapData[rr][cc])); sendSet(rr,cc,mapData[rr][cc]); });
+                cell.setOnLongClickListener(v->{ mapData[rr][cc]--; if(mapData[rr][cc]<0) mapData[rr][cc]=45; cellViews[rr][cc].setText(String.valueOf(mapData[rr][cc])); sendSet(rr,cc,mapData[rr][cc]); return true; });
                 cellViews[r][c]=cell; gridMap.addView(cell);
             }
         }
@@ -103,129 +105,200 @@ public class MainActivity extends Activity {
         }catch(Exception e){}
     }
 
-    void sendGet(){ 
-        Toast.makeText(this,"GET MAP $GET*...",Toast.LENGTH_SHORT).show();
-        // DTR udah ON dari CONNECT, jadi ga reset lagi!
-        tvLog.setText("Kirim $GET*\n (DTR ON)...");
-        sendCmd("$GET*\n");
+    // SERIAL USB MODIF - FINAL FIX
+    void connect(){
+        try{
+            UsbManager um=(UsbManager)getSystemService(USB_SERVICE);
+            if(um.getDeviceList().size()==0){
+                tvLog.setText("No USB! Aktifkan OTG + ganti kabel");
+                Toast.makeText(this,"No USB device! OTG ON?",Toast.LENGTH_LONG).show();
+                return;
+            }
+            UsbDevice dev=null;
+            for(UsbDevice d: um.getDeviceList().values()){
+                dev=d; break;
+            }
+            if(dev==null) return;
+            if(!um.hasPermission(dev)){
+                um.requestPermission(dev,permissionIntent);
+                tvLog.setText("Minta permission USB...");
+                return;
+            }
+            conn=um.openDevice(dev);
+            if(conn==null){ tvLog.setText("Gagal open device"); return; }
+            
+            // Claim semua interface
+            UsbInterface dataIf=null;
+            for(int i=0;i<dev.getInterfaceCount();i++){
+                UsbInterface intf=dev.getInterface(i);
+                try{ conn.claimInterface(intf,true); }catch(Exception e){}
+                // Cari interface yang punya 2 bulk endpoint (data interface)
+                if(intf.getEndpointCount()>=2) dataIf=intf;
+            }
+            
+            // Set line coding 115200 8N1 - SAMA KAYAK TERMINAL YANG JALAN!
+            try{
+                byte[] lineCoding = new byte[]{ (byte)0x00, (byte)0xC2, (byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x08 };
+                conn.controlTransfer(0x21, 0x20, 0, 0, lineCoding, lineCoding.length, 1000);
+            }catch(Exception e){}
+            
+            // FIX PENTING: DTR ON + RTS ON (3) - TERMINAL YANG JALAN DI FOTO 10:09 PAKE INI!
+            // Kalau DTR OFF atau RTS OFF, LGT cuma bisa SET (pendek) tapi GET (panjang) gagal!
+            try{
+                conn.controlTransfer(0x21, 0x22, 3, 0, null, 0, 1000);
+                dtrOn=true; rtsOn=true;
+                btnDtr.setText("DTR ON"); btnRts.setText("RTS ON");
+            }catch(Exception e){}
+            
+            // Cari endpoint bulk IN dan OUT
+            epIn=null; epOut=null;
+            for(int i=0;i<dev.getInterfaceCount();i++){
+                UsbInterface intf=dev.getInterface(i);
+                for(int j=0;j<intf.getEndpointCount();j++){
+                    UsbEndpoint ep=intf.getEndpoint(j);
+                    if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){
+                        if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep;
+                        else epOut=ep;
+                    }
+                }
+            }
+            if(epIn==null || epOut==null){
+                tvLog.setText("Endpoint null! Cabut colok OTG");
+                return;
+            }
+            
+            tvStatus.setText("CONNECTED DTR ON RTS ON"); tvStatus.setTextColor(0xFF00FF00);
+            btnConnect.setText("CONNECTED"); btnGetMap.setEnabled(true); btnSaveMap.setEnabled(true);
+            btnGetMap.setAlpha(1f); btnSaveMap.setAlpha(1f);
+            isLive=true; rxBuffer.setLength(0);
+            startRead();
+            tvLog.setText("CONNECTED - LGT reset 1x, tunggu boot 2 detik...");
+            // Tunggu LGT boot setelah DTR ON (reset), baru auto GET MAP
+            new android.os.Handler().postDelayed(()->{
+                tvLog.setText("Kirim $GET* auto...");
+                sendGet();
+            }, 2500);
+            
+        }catch(Exception e){ tvLog.setText("ERR connect: "+e.getMessage()); }
     }
-    void sendSave(){ 
-        Toast.makeText(this,"SAVE MAP $SAVE*...",Toast.LENGTH_SHORT).show();
-        tvLog.setText("Kirim $SAVE* ke LGT...");
-        try{ conn.controlTransfer(0x21,0x22,1,0,null,0,500); dtrOn=true; btnDtr.setText("DTR ON"); }catch(Exception e){}
+
+    void setDtrRts(){
+        try{
+            if(conn==null) return;
+            int v=(dtrOn?1:0)|(rtsOn?2:0);
+            conn.controlTransfer(0x21,0x22,v,0,null,0,500);
+            tvLog.setText("Set DTR="+(dtrOn?"ON":"OFF")+" RTS="+(rtsOn?"ON":"OFF")+" -> "+v);
+        }catch(Exception e){ tvLog.setText("DTR/RTS ERR "+e.getMessage()); }
+    }
+
+    void sendCmd(String s){
+        try{
+            if(conn==null || epOut==null){ tvLog.setText("Not connected!"); return; }
+            byte[] data=s.getBytes();
+            int r=conn.bulkTransfer(epOut,data,data.length,1000);
+            tvLog.setText("Kirim "+s.trim()+" -> "+r+" bytes");
+        }catch(Exception e){ tvLog.setText("SEND ERR "+e.getMessage()); }
+    }
+
+    void sendGet(){
+        Toast.makeText(this,"GET MAP $GET*",Toast.LENGTH_SHORT).show();
+        sendCmd("$GET*\n");
+        // Kirim lagi 600ms kemudian kalau pertama ketabrak RPM
+        new android.os.Handler().postDelayed(()-> sendCmd("$GET*\n"), 600);
+    }
+    void sendSave(){
+        Toast.makeText(this,"SAVE $SAVE*",Toast.LENGTH_SHORT).show();
         sendCmd("$SAVE*\n");
     }
-    void sendSet(int r,int c,int val){ 
+    void sendSet(int r,int c,int val){
         tvRowCol.setText("SET R"+r+" C"+c+" = "+val+" deg");
         sendCmd("$SET,"+r+","+c+","+val+"*\n");
     }
 
-    void connect(){
-        try{
-            UsbManager um=(UsbManager)getSystemService(USB_SERVICE);
-            int cnt=um.getDeviceList().size();
-            tvLog.setText("CEK USB device:"+cnt);
-            if(cnt==0){
-                tvLog.setText("No USB! Cek OTG ON + Ganti kabel");
-                Toast.makeText(this,"No USB! Aktifkan OTG di Setting HP",Toast.LENGTH_LONG).show();
-                return;
+    void startRead(){
+        new Thread(()->{
+            byte[] buf=new byte[4096];
+            while(isLive){
+                try{
+                    int n=conn.bulkTransfer(epIn,buf,buf.length,1000);
+                    if(n>0){
+                        String chunk=new String(buf,0,n);
+                        rxBuffer.append(chunk);
+                        String all=rxBuffer.toString();
+                        // Split by * karena semua command diakhiri *
+                        while(all.contains("*")){
+                            int idx=all.indexOf("*");
+                            String line=all.substring(0,idx+1);
+                            all=all.substring(idx+1);
+                            parse(line);
+                        }
+                        rxBuffer=new StringBuilder(all);
+                    }
+                }catch(Exception e){
+                    try{ Thread.sleep(10); }catch(Exception e2){}
+                }
             }
-            String info="";
-            for(UsbDevice d: um.getDeviceList().values()){
-                info+=d.getVendorId()+"/"+d.getProductId()+" ";
-            }
-            tvLog.setText("Found: "+info);
-            UsbDevice dev=um.getDeviceList().values().iterator().next();
-            if(!um.hasPermission(dev)){ um.requestPermission(dev,permissionIntent); tvLog.setText("Minta Permission..."); return; }
-            conn=um.openDevice(dev); if(conn==null){ tvLog.setText("Gagal open"); return; }
-            for(int i=0;i<dev.getInterfaceCount();i++) try{ conn.claimInterface(dev.getInterface(i),true); }catch(Exception e){}
-            try{
-                byte[] lineCoding = new byte[]{ (byte)0x00, (byte)0xC2, (byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x08 };
-                conn.controlTransfer(0x21, 0x20, 0, 0, lineCoding, lineCoding.length, 1000);
-                // LGT8F butuh DTR ON buat nerima $GET* dari HP, kalau OFF cuma bisa kirim RPM doang!
-                // Ya, DTR ON bikin LGT reset sekali (keluar sampah $[STRIPPED 7 bytes]$), tapi abis itu stabil!
-                // Makanya kita DTR ON di sini, tunggu 2 detik boot, baru kirim GET!
-                conn.controlTransfer(0x21, 0x22, 1, 0, null, 0, 1000); // DTR ON RTS OFF - biar bisa kirim command, reset sekali aja
-                dtrOn=true; rtsOn=false;
-                btnDtr.setText("DTR ON"); btnRts.setText("RTS OFF");
-            }catch(Exception e){}
-            epIn=null; epOut=null;
-            for(int i=0;i<dev.getInterfaceCount();i++){ UsbInterface intf=dev.getInterface(i); for(int j=0;j<intf.getEndpointCount();j++){ UsbEndpoint ep=intf.getEndpoint(j); if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){ if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep; else epOut=ep; } } }
-            if(epIn==null || epOut==null){ tvLog.setText("Endpoint null, cabut colok"); return; }
-            tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); btnGetMap.setEnabled(true); btnSaveMap.setEnabled(true); btnGetMap.setAlpha(1f); btnSaveMap.setAlpha(1f); isLive=true; startRead(); 
-            tvLog.setText("CONNECTED DTR ON - LGT reset 1x, tunggu 2 detik boot..."); 
-            // LGT abis DTR ON reset, tunggu 2 detik sampe V7.4 muncul lagi baru GET
-            new android.os.Handler().postDelayed(new Runnable(){ public void run(){ 
-                tvLog.setText("LGT stabil, kirim $GET*...");
-                sendGet(); 
-            }}, 2000);
-        }catch(Exception e){ tvLog.setText("ERR:"+e.getMessage()); }
+        }).start();
     }
 
-
-    void setDtrRts(){ try{ if(conn==null) return; int v=(dtrOn?1:0)|(rtsOn?2:0); conn.controlTransfer(0x21,0x22,v,0,null,0,1000); }catch(Exception e){} }
-    void sendCmd(String s){ try{ if(conn!=null && epOut!=null){ int r=conn.bulkTransfer(epOut,s.getBytes(),s.length(),1000); tvLog.setText("Kirim "+s.trim()+" -> "+r+" bytes"); } }catch(Exception e){ tvLog.setText("SEND ERR "+e.getMessage()); } }
-    void startRead(){ new Thread(new Runnable(){ public void run(){ byte[] buf=new byte[4096]; StringBuilder sb=new StringBuilder(); while(isLive){ try{ int n=conn.bulkTransfer(epIn,buf,buf.length,1000); if(n>0){ String chunk=new String(buf,0,n); sb.append(chunk); String all=sb.toString(); while(all.contains("*")){ int idx=all.indexOf("*"); String line=all.substring(0,idx+1); all=all.substring(idx+1); parse(line); } sb=new StringBuilder(all); } }catch(Exception e){} } }}).start(); }
-
     void parse(String line){
-        runOnUiThread(new Runnable(){
-            public void run(){
-                try{
-                    if(line==null) return;
-                    String clean=line.trim().replace("\r","").replace("\n","");
-                    int idxDollar=clean.indexOf("$");
-                    if(idxDollar>=0) clean=clean.substring(idxDollar);
-                    if(clean.length()<5) return;
-                    if(clean.contains("$OK,RPM,")){
-                        String noStar=clean.replace("*","").replace("$OK,","").replace("$","");
-                        String[] p=noStar.split(",");
-                        int rpm=0; int map=0; int adv=0;
-                        for(int i=0;i<p.length-1;i++){
-                            if(p[i].equals("RPM")) try{ rpm=Integer.parseInt(p[i+1]); }catch(Exception e){}
-                            if(p[i].equals("MAP")) try{ map=Integer.parseInt(p[i+1]); }catch(Exception e){}
-                            if(p[i].equals("ADV")) try{ adv=Integer.parseInt(p[i+1]); }catch(Exception e){}
-                        }
-                        tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm+" RPM"); 
-                        highlightCell(rpm,map);
-                    }else if(clean.contains("$MAPR,")){
-                        try{
-                            String c2=clean.substring(clean.indexOf("$MAPR,"));
-                            String[] p=c2.replace("*","").replace("\r","").replace("\n","").split(","); 
-                            int row=Integer.parseInt(p[1]); 
-                            StringBuilder logB=new StringBuilder();
-                            for(int c=0;c<16 && c+2<p.length;c++){ 
-                                try{ 
-                                    int v=Integer.parseInt(p[c+2].trim());
-                                    mapData[row][c]=v; 
-                                    if(row>=0 && row<16 && c>=0 && c<16) {
-                                        cellViews[row][c].setText(String.valueOf(v));
-                                        cellViews[row][c].setBackgroundColor(0xFF003300);
-                                    }
-                                    logB.append(v).append(",");
-                                }catch(Exception e){}
-                            }
-                            tvLog.setText("MAP ROW "+row+" OK: "+logB.toString());
-                            tvRowCol.setText("GET ROW "+row+" = "+mapData[row][0]+","+mapData[row][1]+","+mapData[row][2]+"... OK!");
-                            if(row==0) Toast.makeText(MainActivity.this,"GET ROW 0 OK! "+mapData[0][0]+","+mapData[0][1],Toast.LENGTH_SHORT).show();
-                            if(row==15) {
-                                Toast.makeText(MainActivity.this,"GET MAP SELESAI 16 ROW!",Toast.LENGTH_LONG).show();
-                                for(int r=0;r<16;r++) for(int c=0;c<16;c++) try{ cellViews[r][c].setBackgroundColor(0xFF111111); }catch(Exception e){}
-                                highlightCell(800,15);
-                            }
-                        }catch(Exception e){ tvLog.setText("MAPR ERR "+e.getMessage()+" line:"+clean); }
-                    }else if(clean.contains("$MAPDONE")){
-                        Toast.makeText(MainActivity.this,"GET MAP SELESAI! 16 ROW! MAPDONE!",Toast.LENGTH_LONG).show();
-                        tvLog.setText("GET MAP DONE - Grid terisi penuh!");
-                        tvRowCol.setText("MAP DONE - 16x16 terisi! Klik sel buat edit!");
-                    }else if(clean.contains("SAVE_DONE")){
-                        Toast.makeText(MainActivity.this,"SAVE EEPROM OK! LED kedip 3x",Toast.LENGTH_LONG).show();
-                        tvLog.setText("SAVE DONE! EEPROM tersimpan!");
-                    }else if(clean.contains("V7.4")){
-                        tvStatus.setText(clean.replace("*",""));
-                        tvLog.setText(clean);
+        runOnUiThread(()->{
+            try{
+                if(line==null) return;
+                String clean=line.trim().replace("\r","").replace("\n","").replace("
+","").replace("
+","");
+                int idxDollar=clean.indexOf("$");
+                if(idxDollar>=0) clean=clean.substring(idxDollar);
+                if(clean.length()<5) return;
+                
+                if(clean.contains("$OK,RPM,")){
+                    String noStar=clean.replace("*","").replace("$OK,","").replace("$","");
+                    String[] p=noStar.split(",");
+                    int rpm=0, map=0, adv=0;
+                    for(int i=0;i<p.length-1;i++){
+                        if(p[i].equals("RPM")) try{ rpm=Integer.parseInt(p[i+1]); }catch(Exception e){}
+                        if(p[i].equals("MAP")) try{ map=Integer.parseInt(p[i+1]); }catch(Exception e){}
+                        if(p[i].equals("ADV")) try{ adv=Integer.parseInt(p[i+1]); }catch(Exception e){}
                     }
-                }catch(Exception e){ tvLog.setText("PARSE ERR "+e.getMessage()); }
-            }
+                    tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm+" RPM"); 
+                    highlightCell(rpm,map);
+                }else if(clean.contains("$MAPR,")){
+                    try{
+                        String c2=clean.substring(clean.indexOf("$MAPR,"));
+                        String[] p=c2.replace("*","").split(",");
+                        int row=Integer.parseInt(p[1]);
+                        StringBuilder logB=new StringBuilder();
+                        for(int c=0;c<16 && c+2<p.length;c++){
+                            try{
+                                int v=Integer.parseInt(p[c+2].trim());
+                                if(v<0) v=0; if(v>45) v=45;
+                                mapData[row][c]=v;
+                                if(row>=0 && row<16 && c>=0 && c<16){
+                                    cellViews[row][c].setText(String.valueOf(v));
+                                    cellViews[row][c].setBackgroundColor(0xFF003300);
+                                }
+                                logB.append(v).append(",");
+                            }catch(Exception e){}
+                        }
+                        tvLog.setText("MAP ROW "+row+" OK: "+logB.toString());
+                        if(row==15){
+                            Toast.makeText(MainActivity.this,"GET MAP DONE 16 ROW!",Toast.LENGTH_LONG).show();
+                            for(int r=0;r<16;r++) for(int cc=0;cc<16;cc++) try{ cellViews[r][cc].setBackgroundColor(0xFF111111); }catch(Exception e){}
+                            highlightCell(800,15);
+                        }
+                    }catch(Exception e){ tvLog.setText("MAPR ERR "+e.getMessage()+" "+clean); }
+                }else if(clean.contains("$MAPDONE")){
+                    Toast.makeText(MainActivity.this,"MAP DONE 16x16!",Toast.LENGTH_LONG).show();
+                    tvLog.setText("GET MAP DONE - Grid penuh!");
+                }else if(clean.contains("SAVE_DONE") || clean.contains("$OK,SAVE")){
+                    Toast.makeText(MainActivity.this,"SAVE OK! LED kedip 3x",Toast.LENGTH_LONG).show();
+                    tvLog.setText("SAVE DONE EEPROM!");
+                }else if(clean.contains("V7.4")){
+                    tvStatus.setText(clean.replace("*",""));
+                    tvLog.setText(clean);
+                }
+            }catch(Exception e){ tvLog.setText("PARSE ERR "+e.getMessage()); }
         });
     }
 
