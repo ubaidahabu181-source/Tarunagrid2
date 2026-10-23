@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#101012"
+    android:padding="12dp">
+
+    <!-- HEADER RPM MAP ADV -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView android:id="@+id/tvRpm"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="50dp" android:background="#1C1C1F"
+            android:text="RPM
+0" android:textColor="#FF6A00"
+            android:gravity="center" android:textStyle="bold" />
+
+        <TextView android:id="@+id/tvMap"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="50dp" android:layout_marginLeft="8dp"
+            android:background="#1C1C1F" android:text="MAP
+0"
+            android:textColor="#FFF" android:gravity="center" />
+
+        <TextView android:id="@+id/tvAdv"
+            android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="50dp" android:layout_marginLeft="8dp"
+            android:background="#1C1C1F" android:text="ADV
+0°"
+            android:textColor="#00E5FF" android:gravity="center" />
+    </LinearLayout>
+
+    <!-- GRID 8x8 VISIBLE, LOGIC 16x16 DI JAVA -->
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="IGNITION GRID 8x8 preview (logic 16x16)" 
+        android:textColor="#666" android:textSize="10sp"
+        android:layout_marginTop="12dp" />
+
+    <GridLayout android:id="@+id/gridMap"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:columnCount="8"
+        android:rowCount="8"
+        android:layout_marginTop="6dp" />
+
+    <!-- CONTROLS -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="10dp">
+        <Button android:id="@+id/btnGet" android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="48dp" android:text="$GET" android:background="#222" android:textColor="#FFF" />
+        <Button android:id="@+id/btnSet" android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="48dp" android:layout_marginLeft="8dp"
+            android:text="$SET" android:background="#FF6A00" android:textColor="#000" />
+    </LinearLayout>
+
+    <!-- LOG + ANTI MATI STATUS -->
+    <TextView android:id="@+id/tvAntiMati"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="ANTI-MATI: DTR OFF | RTS OFF | CH340 STABLE"
+        android:textColor="#39FF14" android:textSize="10sp"
+        android:background="#162016" android:padding="6dp"
+        android:layout_marginTop="8dp" />
+
+    <ScrollView android:layout_width="match_parent" android:layout_height="80dp"
+        android:background="#161618" android:layout_marginTop="6dp">
+        <TextView android:id="@+id/tvLog"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="> Taruna Grid Ready&#10;> Colok USB CH340 VID 6790..."
+            android:textColor="#888" android:textSize="11sp"
+            android:fontFamily="monospace" android:padding="8dp"/>
+    </ScrollView>
+</LinearLayout>
