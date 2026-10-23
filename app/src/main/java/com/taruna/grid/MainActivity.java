@@ -140,14 +140,23 @@ public class MainActivity extends Activity {
             try{
                 byte[] lineCoding = new byte[]{ (byte)0x00, (byte)0xC2, (byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x08 };
                 conn.controlTransfer(0x21, 0x20, 0, 0, lineCoding, lineCoding.length, 1000);
-                conn.controlTransfer(0x21, 0x22, 3, 0, null, 0, 1000);
+                // JANGAN SET DTR+RTS 3 pas connect! Ini bikin LGT8F RESET dan keluar sampah $�D�$!
+                // conn.controlTransfer(0x21, 0x22, 3, 0, null, 0, 1000);
+                conn.controlTransfer(0x21, 0x22, 0, 0, null, 0, 1000); // DTR OFF RTS OFF biar ga reset
             }catch(Exception e){}
             epIn=null; epOut=null;
             for(int i=0;i<dev.getInterfaceCount();i++){ UsbInterface intf=dev.getInterface(i); for(int j=0;j<intf.getEndpointCount();j++){ UsbEndpoint ep=intf.getEndpoint(j); if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){ if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep; else epOut=ep; } } }
             if(epIn==null || epOut==null){ tvLog.setText("Endpoint null, cabut colok"); return; }
-            tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); btnGetMap.setEnabled(true); btnSaveMap.setEnabled(true); btnGetMap.setAlpha(1f); btnSaveMap.setAlpha(1f); isLive=true; startRead(); tvLog.setText("CONNECTED - Menunggu data..."); sendGet();
+            tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); btnGetMap.setEnabled(true); btnSaveMap.setEnabled(true); btnGetMap.setAlpha(1f); btnSaveMap.setAlpha(1f); isLive=true; startRead(); 
+            tvLog.setText("CONNECTED - Tunggu 1.5 detik biar LGT stabil..."); 
+            // Delay GET MAP 1.5 detik biar LGT ga lagi boot (tanda $OK,V7.4 muncul dulu)
+            new android.os.Handler().postDelayed(new Runnable(){ public void run(){ 
+                tvLog.setText("Kirim $GET* ke LGT (auto)...");
+                sendGet(); 
+            }}, 1500);
         }catch(Exception e){ tvLog.setText("ERR:"+e.getMessage()); }
     }
+
 
     void setDtrRts(){ try{ if(conn==null) return; int v=(dtrOn?1:0)|(rtsOn?2:0); conn.controlTransfer(0x21,0x22,v,0,null,0,1000); }catch(Exception e){} }
     void sendCmd(String s){ try{ if(conn!=null && epOut!=null) conn.bulkTransfer(epOut,s.getBytes(),s.length(),1000); }catch(Exception e){} }
