@@ -9,8 +9,8 @@ android {
         applicationId "com.taruna.grid"
         minSdk 24
         targetSdk 34
-        versionCode 34
-        versionName "34"
+        versionCode 36
+        versionName "36"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
