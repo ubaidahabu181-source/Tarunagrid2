@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- QINHENG CH340 VID 6790 = 0x1A86 PID 7523 = 0x7523 -->
-    <usb-device vendor-id="6790" product-id="7523" />
-    <!-- Cadangan PID lain CH340 -->
-    <usb-device vendor-id="6790" product-id="29987" />
-</resources>
