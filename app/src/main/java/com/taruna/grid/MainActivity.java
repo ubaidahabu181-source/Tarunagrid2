@@ -52,9 +52,9 @@ public class MainActivity extends Activity {
             @Override public void onReceive(Context c, Intent i){
                 if(ACTION_USB_PERMISSION.equals(i.getAction())){
                     if(i.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED,false)){
-                        tvLog.setText("Permission OK! Auto CONNECT...");
+                        tvLog.setText("OK CONNECT");
                         runOnUiThread(new Runnable(){ public void run(){ connect(); } });
-                    }else tvLog.setText("Permission ditolak!");
+                    }else tvLog.setText("No Perm");
                 }
             }
         };
@@ -64,10 +64,8 @@ public class MainActivity extends Activity {
         initMapData(); buildGrid();
         btnDtr.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ dtrOn=!dtrOn; btnDtr.setText(dtrOn?"DTR ON":"DTR OFF"); setDtrRts(); }});
         btnRts.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ rtsOn=!rtsOn; btnRts.setText(rtsOn?"RTS ON":"RTS OFF"); setDtrRts(); }});
-        btnGetMap.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ sendCmd("$GET*
-"); }});
-        btnSaveMap.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ sendCmd("$SAVE*
-"); }});
+        btnGetMap.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ sendGet(); }});
+        btnSaveMap.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ sendSave(); }});
         btnConnect.setOnClickListener(new android.view.View.OnClickListener(){ public void onClick(android.view.View v){ connect(); }});
     }
 
@@ -76,7 +74,7 @@ public class MainActivity extends Activity {
     void buildGrid(){
         gridMap.removeAllViews();
         int W=95; int H=75;
-        TextView corner=new TextView(this); corner.setText("R\M"); corner.setWidth(W); corner.setHeight(H); corner.setGravity(Gravity.CENTER); corner.setBackgroundColor(0xFF333333); corner.setTextColor(0xFFFFFFFF); corner.setTextSize(14); gridMap.addView(corner);
+        TextView corner=new TextView(this); corner.setText("R/M"); corner.setWidth(W); corner.setHeight(H); corner.setGravity(Gravity.CENTER); corner.setBackgroundColor(0xFF333333); corner.setTextColor(0xFFFFFFFF); corner.setTextSize(14); gridMap.addView(corner);
         for(int c=0;c<16;c++){ TextView h=new TextView(this); h.setText(String.valueOf(mapBins[c])); h.setWidth(W); h.setHeight(H); h.setGravity(Gravity.CENTER); h.setBackgroundColor(0xFF444444); h.setTextColor(0xFF00BFFF); h.setTextSize(13); gridMap.addView(h); }
         for(int r=0;r<16;r++){
             TextView rh=new TextView(this); rh.setText(String.valueOf(rpmBins[r])); rh.setWidth(W); rh.setHeight(H); rh.setGravity(Gravity.CENTER); rh.setBackgroundColor(0xFF444444); rh.setTextColor(0xFF00FF00); rh.setTextSize(12); gridMap.addView(rh);
@@ -97,25 +95,25 @@ public class MainActivity extends Activity {
         if(rIdx==currentRpmBin && cIdx==currentMapBin) return;
         if(currentRpmBin>=0){ try{ cellViews[currentRpmBin][currentMapBin].setBackgroundColor(0xFF111111); cellViews[currentRpmBin][currentMapBin].setTextColor(0xFFFFFFFF); }catch(Exception e){} }
         currentRpmBin=rIdx; currentMapBin=cIdx;
-        try{ cellViews[rIdx][cIdx].setBackgroundColor(0xFFFFFF00); cellViews[rIdx][cIdx].setTextColor(0xFF000000); tvRowCol.setText("LIVE ROW "+rIdx+" COL "+cIdx+" -> "+mapData[rIdx][cIdx]+"°"); }catch(Exception e){}
+        try{ cellViews[rIdx][cIdx].setBackgroundColor(0xFFFFFF00); cellViews[rIdx][cIdx].setTextColor(0xFF000000); tvRowCol.setText("ROW "+rIdx+" COL "+cIdx); }catch(Exception e){}
     }
 
-    void sendSet(int r,int c,int val){ sendCmd("$SET,"+r+","+c+","+val+"*
-"); }
+    void sendGet(){ StringBuilder sb=new StringBuilder(); sb.append("$GET*"); sb.append("\n"); sendCmd(sb.toString()); }
+    void sendSave(){ StringBuilder sb=new StringBuilder(); sb.append("$SAVE*"); sb.append("\n"); sendCmd(sb.toString()); }
+    void sendSet(int r,int c,int val){ StringBuilder sb=new StringBuilder(); sb.append("$SET,"); sb.append(r); sb.append(","); sb.append(c); sb.append(","); sb.append(val); sb.append("*\n"); sendCmd(sb.toString()); }
 
     void connect(){
         try{
             UsbManager um=(UsbManager)getSystemService(USB_SERVICE);
-            if(um.getDeviceList().isEmpty()){ tvLog.setText("No USB!"); return; }
+            if(um.getDeviceList().isEmpty()){ tvLog.setText("No USB"); return; }
             UsbDevice dev=um.getDeviceList().values().iterator().next();
             if(!um.hasPermission(dev)){ um.requestPermission(dev,permissionIntent); return; }
             conn=um.openDevice(dev); if(conn==null) return;
             for(int i=0;i<dev.getInterfaceCount();i++) try{ conn.claimInterface(dev.getInterface(i),true); }catch(Exception e){}
             epIn=null; epOut=null;
             for(int i=0;i<dev.getInterfaceCount();i++){ UsbInterface intf=dev.getInterface(i); for(int j=0;j<intf.getEndpointCount();j++){ UsbEndpoint ep=intf.getEndpoint(j); if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){ if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep; else epOut=ep; } } }
-            tvStatus.setText("LIVE - V7.4 JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); isLive=true; startRead(); tvLog.setText("CONNECTED JUMBO!"); sendCmd("$GET*
-");
-        }catch(Exception e){ tvLog.setText("ERR: "+e.getMessage()); }
+            tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); isLive=true; startRead(); tvLog.setText("CONNECTED"); sendGet();
+        }catch(Exception e){ tvLog.setText("ERR"); }
     }
 
     void setDtrRts(){ try{ if(conn==null) return; int v=(dtrOn?1:0)|(rtsOn?2:0); conn.controlTransfer(0x21,0x22,v,0,null,0,1000); }catch(Exception e){} }
@@ -126,9 +124,7 @@ public class MainActivity extends Activity {
         runOnUiThread(new Runnable(){
             public void run(){
                 try{
-                    String clean=line.trim().replace("
-","").replace("
-","");
+                    String clean=line.trim().replace("\r","").replace("\n","");
                     if(clean.length()<5) return;
                     if(clean.startsWith("$OK,RPM,")){
                         String noStar=clean.replace("*","").replace("$OK,","").replace("$","");
@@ -139,7 +135,7 @@ public class MainActivity extends Activity {
                             if(p[i].equals("MAP")) map=Integer.parseInt(p[i+1]);
                             if(p[i].equals("ADV")) adv=Integer.parseInt(p[i+1]);
                         }
-                        tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+"°"); tvStatus.setText("LIVE - "+rpm+" RPM"); highlightCell(rpm,map);
+                        tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm); highlightCell(rpm,map);
                     }else if(clean.startsWith("$MAPR,")){
                         String[] p=clean.replace("*","").split(","); int row=Integer.parseInt(p[1]); for(int c=0;c<16 && c+2<p.length;c++){ mapData[row][c]=Integer.parseInt(p[c+2]); cellViews[row][c].setText(String.valueOf(mapData[row][c])); }
                     }
@@ -150,4 +146,4 @@ public class MainActivity extends Activity {
 
     @Override protected void onDestroy(){ super.onDestroy(); isLive=false; try{ if(conn!=null) conn.close(); }catch(Exception e){} try{ unregisterReceiver(usbReceiver); }catch(Exception e){} }
 }
-                                                                          
+                                     
