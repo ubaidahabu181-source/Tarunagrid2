@@ -1,55 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:background="#000000">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="TARUNA GRID V7.4 JUMBO"
+        android:textColor="#FFA500"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="8dp"/>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="8dp">
+        android:orientation="horizontal">
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="TARUNA GRID V7.4 JUMBO" android:textColor="#FF9800" android:textSize="20sp" android:textStyle="bold"/>
-
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
-            <TextView android:id="@+id/tv_rpm" android:layout_width="0dp" android:layout_weight="1" android:layout_height="80dp" android:background="#222" android:gravity="center" android:text="---" android:textColor="#00FF00" android:textSize="28sp" android:textStyle="bold"/>
-            <TextView android:id="@+id/tv_map" android:layout_width="0dp" android:layout_weight="1" android:layout_height="80dp" android:layout_marginLeft="4dp" android:background="#222" android:gravity="center" android:text="---" android:textColor="#00BFFF" android:textSize="22sp" android:textStyle="bold"/>
-            <TextView android:id="@+id/tv_adv" android:layout_width="0dp" android:layout_weight="1" android:layout_height="80dp" android:layout_marginLeft="4dp" android:background="#222" android:gravity="center" android:text="---" android:textColor="#FF00FF" android:textSize="24sp" android:textStyle="bold"/>
-        </LinearLayout>
-
-        <TextView android:id="@+id/tv_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="READY" android:textColor="#00FF00" android:textSize="14sp" android:layout_marginTop="4dp"/>
-        <TextView android:id="@+id/tv_rowcol" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ROW - COL -" android:textColor="#FFFF00" android:textSize="12sp" android:textStyle="bold"/>
-        <TextView android:id="@+id/tv" android:layout_width="match_parent" android:layout_height="80dp" android:background="#111" android:textColor="#0F0" android:textSize="11sp" android:layout_marginTop="4dp"/>
-
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
-            <Button android:id="@+id/btn_dtr" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:text="DTR OFF" android:textSize="12sp"/>
-            <Button android:id="@+id/btn_rts" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:text="RTS OFF" android:textSize="12sp" android:layout_marginLeft="4dp"/>
-            <Button android:id="@+id/btn_connect" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:text="CONNECT" android:background="#FF9800" android:textSize="12sp" android:layout_marginLeft="4dp"/>
-        </LinearLayout>
-
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="4dp">
-            <Button android:id="@+id/btn_getmap" android:layout_width="0dp" android:layout_weight="1" android:layout_height="50dp" android:text="GET MAP" android:background="#444" android:textSize="14sp"/>
-            <Button android:id="@+id/btn_savemap" android:layout_width="0dp" android:layout_weight="1" android:layout_height="50dp" android:text="SAVE MAP" android:background="#00FF00" android:textSize="14sp" android:layout_marginLeft="4dp"/>
-        </LinearLayout>
-
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="IGNITION MAP 16x16 JUMBO - KLIK +1 / TAHAN -1 / KUNING=LIVE" android:textColor="#FF9800" android:textStyle="bold" android:gravity="center" android:layout_marginTop="12dp" android:textSize="12sp"/>
-
-        <!-- INI KUNCI JUMBO NYA BOS - BISA SCROLL KIRI KANAN! -->
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="#222">
-
-            <GridLayout
-                android:id="@+id/grid_map"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:columnCount="17"
-                android:rowCount="17"/>
-
-        </HorizontalScrollView>
-
+        <TextView android:id="@+id/tv_rpm" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1"
+            android:text="---" android:textColor="#00FF00" android:textSize="28sp" android:textStyle="bold"
+            android:gravity="center" android:background="#222222" android:layout_margin="2dp"/>
+        <TextView android:id="@+id/tv_map" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1"
+            android:text="---" android:textColor="#00BFFF" android:textSize="20sp" android:textStyle="bold"
+            android:gravity="center" android:background="#222222" android:layout_margin="2dp"/>
+        <TextView android:id="@+id/tv_adv" android:layout_width="0dp" android:layout_height="80dp" android:layout_weight="1"
+            android:text="---" android:textColor="#FF00FF" android:textSize="20sp" android:textStyle="bold"
+            android:gravity="center" android:background="#222222" android:layout_margin="2dp"/>
     </LinearLayout>
-</ScrollView>
+
+    <TextView android:id="@+id/tv_rowcol"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="ROW? COL?"
+        android:textColor="#FFFF00"
+        android:textSize="12sp"
+        android:padding="4dp"/>
+
+    <TextView android:id="@+id/tv_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No USB"
+        android:textColor="#00FF00"
+        android:background="#111111"
+        android:padding="2dp"
+        android:textSize="10sp"/>
+
+    <TextView android:id="@+id/tv"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:text="Log..."
+        android:textColor="#00FF00"
+        android:background="#111111"
+        android:textSize="9sp"
+        android:padding="2dp"/>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+        <Button android:id="@+id/btn_dtr" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:text="DTR OFF" android:textSize="10sp"/>
+        <Button android:id="@+id/btn_rts" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:text="RTS OFF" android:textSize="10sp"/>
+        <Button android:id="@+id/btn_connect" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:text="CONNECT" android:backgroundTint="#FFA500" android:textSize="10sp"/>
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+        <Button android:id="@+id/btn_getmap" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1"
+            android:text="GET MAP" android:backgroundTint="#555555" android:textSize="12sp" android:textStyle="bold"/>
+        <Button android:id="@+id/btn_savemap" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1"
+            android:text="SAVE MAP" android:backgroundTint="#00FF00" android:textColor="#000000" android:textSize="12sp" android:textStyle="bold"/>
+    </LinearLayout>
+
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="IGNITION MAP 16x16 JUMBO - KLIK +1 / TAHAN -1 / KUNING=LIVE - GESER KANAN BUAT LIAT 70-100 kPa"
+        android:textColor="#FFA500" android:textSize="8sp" android:padding="2dp"/>
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scrollbars="horizontal">
+
+        <GridLayout android:id="@+id/grid_map"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:columnCount="17"
+            android:rowCount="17"/>
+
+    </HorizontalScrollView>
+
+</LinearLayout>
