@@ -91,17 +91,32 @@ public class MainActivity extends Activity {
 
     void highlightCell(int rpm,int map){
         int rIdx=0; int cIdx=0;
-        for(int i=0;i<15;i++) if(rpm>=rpmBins[i]) rIdx=i;
-        for(int i=0;i<15;i++) if(map>=mapBins[i]) cIdx=i;
+        for(int i=0;i<16;i++){ if(rpm>=rpmBins[i]) rIdx=i; }
+        for(int i=0;i<16;i++){ if(map>=mapBins[i]) cIdx=i; }
         if(rIdx==currentRpmBin && cIdx==currentMapBin) return;
         if(currentRpmBin>=0){ try{ cellViews[currentRpmBin][currentMapBin].setBackgroundColor(0xFF111111); cellViews[currentRpmBin][currentMapBin].setTextColor(0xFFFFFFFF); }catch(Exception e){} }
         currentRpmBin=rIdx; currentMapBin=cIdx;
-        try{ cellViews[rIdx][cIdx].setBackgroundColor(0xFFFFFF00); cellViews[rIdx][cIdx].setTextColor(0xFF000000); tvRowCol.setText("ROW "+rIdx+" COL "+cIdx); }catch(Exception e){}
+        try{ 
+            cellViews[rIdx][cIdx].setBackgroundColor(0xFFFFFF00); 
+            cellViews[rIdx][cIdx].setTextColor(0xFF000000); 
+            tvRowCol.setText("LIVE ROW "+rIdx+" ("+rpmBins[rIdx]+") COL "+cIdx+" ("+mapBins[cIdx]+") = "+mapData[rIdx][cIdx]+" deg");
+        }catch(Exception e){}
     }
 
-    void sendGet(){ StringBuilder sb=new StringBuilder(); sb.append("$GET*"); sb.append("\n"); sendCmd(sb.toString()); }
-    void sendSave(){ StringBuilder sb=new StringBuilder(); sb.append("$SAVE*"); sb.append("\n"); sendCmd(sb.toString()); }
-    void sendSet(int r,int c,int val){ StringBuilder sb=new StringBuilder(); sb.append("$SET,"); sb.append(r); sb.append(","); sb.append(c); sb.append(","); sb.append(val); sb.append("*\n"); sendCmd(sb.toString()); }
+    void sendGet(){ 
+        Toast.makeText(this,"GET MAP...",Toast.LENGTH_SHORT).show();
+        tvLog.setText("Kirim $GET* ke LGT...");
+        StringBuilder sb=new StringBuilder(); sb.append("$GET*"); sb.append("\n"); sendCmd(sb.toString()); 
+    }
+    void sendSave(){ 
+        Toast.makeText(this,"SAVE MAP ke EEPROM...",Toast.LENGTH_SHORT).show();
+        tvLog.setText("Kirim $SAVE* ke LGT...");
+        StringBuilder sb=new StringBuilder(); sb.append("$SAVE*"); sb.append("\n"); sendCmd(sb.toString()); 
+    }
+    void sendSet(int r,int c,int val){ 
+        tvRowCol.setText("SET R"+r+" C"+c+" = "+val+" deg");
+        StringBuilder sb=new StringBuilder(); sb.append("$SET,"); sb.append(r); sb.append(","); sb.append(c); sb.append(","); sb.append(val); sb.append("*\n"); sendCmd(sb.toString()); 
+    }
 
     void connect(){
         try{
@@ -132,7 +147,7 @@ public class MainActivity extends Activity {
             epIn=null; epOut=null;
             for(int i=0;i<dev.getInterfaceCount();i++){ UsbInterface intf=dev.getInterface(i); for(int j=0;j<intf.getEndpointCount();j++){ UsbEndpoint ep=intf.getEndpoint(j); if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){ if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep; else epOut=ep; } } }
             if(epIn==null || epOut==null){ tvLog.setText("Endpoint null, cabut colok"); return; }
-            tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); isLive=true; startRead(); tvLog.setText("CONNECTED - Menunggu data..."); sendGet();
+            tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); btnGetMap.setEnabled(true); btnSaveMap.setEnabled(true); btnGetMap.setAlpha(1f); btnSaveMap.setAlpha(1f); isLive=true; startRead(); tvLog.setText("CONNECTED - Menunggu data..."); sendGet();
         }catch(Exception e){ tvLog.setText("ERR:"+e.getMessage()); }
     }
 
@@ -160,15 +175,27 @@ public class MainActivity extends Activity {
                             if(p[i].equals("ADV")) try{ adv=Integer.parseInt(p[i+1]); }catch(Exception e){}
                         }
                         tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm+" RPM"); tvRowCol.setText("ROW? COL? "+rpm+"/"+map); highlightCell(rpm,map);
-                    }else if(clean.startsWith("$MAPR,") || clean.contains("$MAPR,")){
-                        String c2=clean.substring(clean.indexOf("$MAPR,"));
-                        String[] p=c2.replace("*","").split(","); 
+                    }else if(clean.contains("$MAPR,")){
                         try{
+                            String c2=clean.substring(clean.indexOf("$MAPR,"));
+                            String[] p=c2.replace("*","").replace("\r","").replace("\n","").split(","); 
                             int row=Integer.parseInt(p[1]); 
                             for(int c=0;c<16 && c+2<p.length;c++){ 
-                                try{ mapData[row][c]=Integer.parseInt(p[c+2]); cellViews[row][c].setText(String.valueOf(mapData[row][c])); }catch(Exception e){}
+                                try{ 
+                                    int v=Integer.parseInt(p[c+2].trim());
+                                    mapData[row][c]=v; 
+                                    if(row>=0 && row<16 && c>=0 && c<16) cellViews[row][c].setText(String.valueOf(v));
+                                }catch(Exception e){}
                             }
-                        }catch(Exception e){}
+                            tvLog.setText("MAP ROW "+row+" OK: "+mapData[row][0]+","+mapData[row][1]+"...");
+                            if(row==0) Toast.makeText(MainActivity.this,"GET MAP ROW 0 OK!",Toast.LENGTH_SHORT).show();
+                        }catch(Exception e){ tvLog.setText("MAPR ERR "+e.getMessage()); }
+                    }else if(clean.contains("$MAPDONE")){
+                        Toast.makeText(MainActivity.this,"GET MAP SELESAI! 16 ROW!",Toast.LENGTH_LONG).show();
+                        tvLog.setText("GET MAP DONE - Grid terisi!");
+                    }else if(clean.contains("SAVE_DONE")){
+                        Toast.makeText(MainActivity.this,"SAVE EEPROM OK! LED kedip 3x",Toast.LENGTH_LONG).show();
+                        tvLog.setText("SAVE DONE!");
                     }else if(clean.contains("V7.4")){
                         tvStatus.setText(clean.replace("*",""));
                     }
