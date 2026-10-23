@@ -74,7 +74,7 @@ public class MainActivity extends Activity {
 
     void buildGrid(){
         gridMap.removeAllViews();
-        int W=95; int H=75;
+        int W=62; int H=52;
         TextView corner=new TextView(this); corner.setText("R/M"); corner.setWidth(W); corner.setHeight(H); corner.setGravity(Gravity.CENTER); corner.setBackgroundColor(0xFF333333); corner.setTextColor(0xFFFFFFFF); corner.setTextSize(14); gridMap.addView(corner);
         for(int c=0;c<16;c++){ TextView h=new TextView(this); h.setText(String.valueOf(mapBins[c])); h.setWidth(W); h.setHeight(H); h.setGravity(Gravity.CENTER); h.setBackgroundColor(0xFF444444); h.setTextColor(0xFF00BFFF); h.setTextSize(13); gridMap.addView(h); }
         for(int r=0;r<16;r++){
@@ -174,7 +174,7 @@ public class MainActivity extends Activity {
                             if(p[i].equals("MAP")) try{ map=Integer.parseInt(p[i+1]); }catch(Exception e){}
                             if(p[i].equals("ADV")) try{ adv=Integer.parseInt(p[i+1]); }catch(Exception e){}
                         }
-                        tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm+" RPM"); tvRowCol.setText("ROW? COL? "+rpm+"/"+map); highlightCell(rpm,map);
+                        tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm+" RPM"); highlightCell(rpm,map);
                     }else if(clean.contains("$MAPR,")){
                         try{
                             String c2=clean.substring(clean.indexOf("$MAPR,"));
