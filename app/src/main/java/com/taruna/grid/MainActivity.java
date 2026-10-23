@@ -9,13 +9,16 @@ import android.content.IntentFilter;
 import android.hardware.usb.*;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.widget.Button;
+import android.widget.GridLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
     TextView tvLog, tvStatus, tvRpm, tvMap, tvAdv, tvRowCol;
     Button btnDtr, btnRts, btnConnect, btnGetMap, btnSaveMap;
+    GridLayout gridMap;
     boolean dtrOn=false, rtsOn=false;
     UsbDeviceConnection conn=null;
     UsbEndpoint epIn=null, epOut=null;
@@ -23,168 +26,123 @@ public class MainActivity extends Activity {
     private static final String ACTION_USB_PERMISSION = "com.taruna.grid.USB_PERMISSION";
     PendingIntent permissionIntent;
     BroadcastReceiver usbReceiver;
+    int[][] mapData = new int[16][16];
+    TextView[][] cellViews = new TextView[16][16];
+    int currentRpmBin=-1, currentMapBin=-1;
+    int[] rpmBins = {500,700,900,1100,1300,1500,1800,2200,2600,3000,3500,4000,4500,5000,5750,6500};
+    int[] mapBins = {20,25,30,35,40,45,50,55,60,65,70,75,80,85,92,100};
 
     @Override
     protected void onCreate(Bundle b){
         super.onCreate(b);
-        try{
-            setContentView(R.layout.activity_main);
-            tvLog=findViewById(R.id.tv);
-            tvStatus=findViewById(R.id.tv_status);
-            tvRpm=findViewById(R.id.tv_rpm);
-            tvMap=findViewById(R.id.tv_map);
-            tvAdv=findViewById(R.id.tv_adv);
-            tvRowCol=findViewById(R.id.tv_rowcol);
-            btnDtr=findViewById(R.id.btn_dtr);
-            btnRts=findViewById(R.id.btn_rts);
-            btnConnect=findViewById(R.id.btn_connect);
-            btnGetMap=findViewById(R.id.btn_getmap);
-            btnSaveMap=findViewById(R.id.btn_savemap);
+        setContentView(R.layout.activity_main);
+        tvLog=findViewById(R.id.tv);
+        tvStatus=findViewById(R.id.tv_status);
+        tvRpm=findViewById(R.id.tv_rpm);
+        tvMap=findViewById(R.id.tv_map);
+        tvAdv=findViewById(R.id.tv_adv);
+        tvRowCol=findViewById(R.id.tv_rowcol);
+        btnDtr=findViewById(R.id.btn_dtr);
+        btnRts=findViewById(R.id.btn_rts);
+        btnConnect=findViewById(R.id.btn_connect);
+        btnGetMap=findViewById(R.id.btn_getmap);
+        btnSaveMap=findViewById(R.id.btn_savemap);
+        gridMap=findViewById(R.id.grid_map);
 
-            permissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_IMMUTABLE);
-            usbReceiver = new BroadcastReceiver(){
-                public void onReceive(Context context, Intent intent){
-                    if(ACTION_USB_PERMISSION.equals(intent.getAction())){
-                        UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                        if(intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED,false)){
-                            if(device!=null){
-                                tvLog.setText("Permission OK! Auto CONNECT...");
-                                runOnUiThread(() -> {
-                                    try{ Thread.sleep(300); }catch(Exception e){}
-                                    connect();
-                                });
-                            }
-                        }else{
-                            tvLog.setText("Permission ditolak! Cabut OTG + Allow!");
-                        }
-                    }
+        permissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_IMMUTABLE);
+        usbReceiver = new BroadcastReceiver(){
+            public void onReceive(Context context, Intent intent){
+                if(ACTION_USB_PERMISSION.equals(intent.getAction())){
+                    UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                    if(intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED,false)){
+                        tvLog.setText("Permission OK! Auto CONNECT..."); runOnUiThread(() -> connect());
+                    }else tvLog.setText("Permission ditolak!");
                 }
-            };
-            IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-            if(Build.VERSION.SDK_INT >= 33){
-                registerReceiver(usbReceiver, filter, Context.RECEIVER_EXPORTED);
-            }else{
-                registerReceiver(usbReceiver, filter);
             }
+        };
+        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+        if(Build.VERSION.SDK_INT >= 33) registerReceiver(usbReceiver, filter, Context.RECEIVER_EXPORTED);
+        else registerReceiver(usbReceiver, filter);
 
-            tvLog.setText("V7.4 FINAL FIX BOS\nFIRMWARE: $OK,RPM,800,MAP,98,ADV,9*\nPencet CONNECT -> OKE -> Auto LIVE!");
+        initMapData(); buildGrid();
 
-            btnDtr.setOnClickListener(v->{
-                dtrOn=!dtrOn;
-                btnDtr.setText(dtrOn?"DTR ON":"DTR OFF");
-                setDtrRts();
-            });
-            btnRts.setOnClickListener(v->{
-                rtsOn=!rtsOn;
-                btnRts.setText(rtsOn?"RTS ON":"RTS OFF");
-                setDtrRts();
-            });
-            btnGetMap.setOnClickListener(v-> sendCmd("$GET*\n"));
-            btnSaveMap.setOnClickListener(v-> sendCmd("$SAVE*\n"));
-            btnConnect.setOnClickListener(v-> connect());
+        btnDtr.setOnClickListener(v->{ dtrOn=!dtrOn; btnDtr.setText(dtrOn?"DTR ON":"DTR OFF"); setDtrRts(); });
+        btnRts.setOnClickListener(v->{ rtsOn=!rtsOn; btnRts.setText(rtsOn?"RTS ON":"RTS OFF"); setDtrRts(); });
+        btnGetMap.setOnClickListener(v-> sendCmd("$GET*\n"));
+        btnSaveMap.setOnClickListener(v-> sendCmd("$SAVE*\n"));
+        btnConnect.setOnClickListener(v-> connect());
+    }
 
-        }catch(Exception e){
-            Toast.makeText(this, "Init Error: "+e.getMessage(), Toast.LENGTH_LONG).show();
+    void initMapData(){
+        for(int r=0;r<16;r++) for(int c=0;c<16;c++) mapData[r][c]=9;
+    }
+
+    void buildGrid(){
+        gridMap.removeAllViews();
+        // header pojok
+        TextView corner = new TextView(this); corner.setText("R/M"); corner.setWidth(45); corner.setHeight(35); corner.setGravity(Gravity.CENTER); corner.setBackgroundColor(0xFF333333); corner.setTextColor(0xFFFFFFFF); corner.setTextSize(8); gridMap.addView(corner);
+        for(int c=0;c<16;c++){ TextView h = new TextView(this); h.setText(String.valueOf(mapBins[c])); h.setWidth(45); h.setHeight(35); h.setGravity(Gravity.CENTER); h.setBackgroundColor(0xFF444444); h.setTextColor(0xFF00BFFF); h.setTextSize(7); gridMap.addView(h); }
+        for(int r=0;r<16;r++){
+            TextView rh = new TextView(this); rh.setText(String.valueOf(rpmBins[r])); rh.setWidth(45); rh.setHeight(35); rh.setGravity(Gravity.CENTER); rh.setBackgroundColor(0xFF444444); rh.setTextColor(0xFF00FF00); rh.setTextSize(7); gridMap.addView(rh);
+            for(int c=0;c<16;c++){
+                TextView cell = new TextView(this);
+                cell.setText(String.valueOf(mapData[r][c])); cell.setWidth(45); cell.setHeight(35); cell.setGravity(Gravity.CENTER); cell.setBackgroundColor(0xFF111111); cell.setTextColor(0xFFFFFFFF); cell.setTextSize(10);
+                final int rr=r, cc=c;
+                cell.setOnClickListener(v->{ mapData[rr][cc]++; if(mapData[rr][cc]>45) mapData[rr][cc]=45; cell.setText(String.valueOf(mapData[rr][cc])); sendSet(rr,cc,mapData[rr][cc]); });
+                cell.setOnLongClickListener(v->{ mapData[rr][cc]--; if(mapData[rr][cc]<0) mapData[rr][cc]=0; cell.setText(String.valueOf(mapData[rr][cc])); sendSet(rr,cc,mapData[rr][cc]); return true; });
+                cellViews[r][c]=cell; gridMap.addView(cell);
+            }
         }
     }
+
+    void highlightCell(int rpm, int map){
+        int rIdx=0, cIdx=0;
+        for(int i=0;i<15;i++) if(rpm>=rpmBins[i]) rIdx=i;
+        for(int i=0;i<15;i++) if(map>=mapBins[i]) cIdx=i;
+        if(rIdx==currentRpmBin && cIdx==currentMapBin) return;
+        if(currentRpmBin>=0 && currentMapBin>=0) try{ cellViews[currentRpmBin][currentMapBin].setBackgroundColor(0xFF111111); }catch(Exception e){}
+        currentRpmBin=rIdx; currentMapBin=cIdx;
+        try{ cellViews[rIdx][cIdx].setBackgroundColor(0xFFFFFF00); cellViews[rIdx][cIdx].setTextColor(0xFF000000); tvRowCol.setText("LIVE ROW "+rIdx+" COL "+cIdx+" -> "+mapData[rIdx][cIdx]+"°"); }catch(Exception e){}
+    }
+
+    void sendSet(int r,int c,int val){ sendCmd("$SET,"+r+","+c+","+val+"*\n"); }
 
     void connect(){
         try{
             UsbManager um=(UsbManager)getSystemService(USB_SERVICE);
-            if(um.getDeviceList().isEmpty()){
-                tvLog.setText("No USB! Colok LGT8F via OTG!");
-                return;
-            }
+            if(um.getDeviceList().isEmpty()){ tvLog.setText("No USB!"); return; }
             UsbDevice dev=um.getDeviceList().values().iterator().next();
-            tvLog.setText("Device: "+dev.getDeviceName()+"\nVID:"+dev.getVendorId()+" PID:"+dev.getProductId()+"\nInterfaces:"+dev.getInterfaceCount());
-
-            if(!um.hasPermission(dev)){
-                tvLog.append("\nMinta permission...");
-                um.requestPermission(dev, permissionIntent);
-                return;
-            }
-
-            conn=um.openDevice(dev);
-            if(conn==null){ tvLog.append("\nGagal open!"); return; }
-
-            // FIX CDC - SCAN SEMUA INTERFACE CARI BULK
-            epIn=null; epOut=null;
+            if(!um.hasPermission(dev)){ um.requestPermission(dev, permissionIntent); return; }
+            conn=um.openDevice(dev); if(conn==null) return;
+            for(int i=0;i<dev.getInterfaceCount();i++) try{ conn.claimInterface(dev.getInterface(i), true); }catch(Exception e){}
             for(int i=0;i<dev.getInterfaceCount();i++){
                 UsbInterface intf=dev.getInterface(i);
-                tvLog.append("\nCek Interface "+i+" ep:"+intf.getEndpointCount());
                 for(int j=0;j<intf.getEndpointCount();j++){
                     UsbEndpoint ep=intf.getEndpoint(j);
                     if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){
-                        if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep;
-                        else epOut=ep;
-                        tvLog.append("\nFound BULK "+(ep.getDirection()==0?"OUT":"IN")+" di Iface "+i);
+                        if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep; else epOut=ep;
                     }
                 }
             }
-
-            if(epIn==null || epOut==null){
-                tvLog.append("\nEndpoint ga ketemu!");
-                return;
-            }
-
-            // FIX CDC - CLAIM SEMUA INTERFACE BIAR DATA MASUK! INI KUNCI NYA!
-            for(int i=0;i<dev.getInterfaceCount();i++){
-                try{ conn.claimInterface(dev.getInterface(i), true); }catch(Exception e){}
-            }
-
-            // Set CDC 115200
-            try{
-                conn.controlTransfer(0x21,0x22,0,0,null,0,1000);
-                conn.controlTransfer(0x21,0x20,0,0,new byte[]{(byte)0x00,(byte)0xC2,(byte)0x01,(byte)0x00,0x00,0x00,0x08},7,1000);
-            }catch(Exception e){}
-
-            setDtrRts();
-            tvStatus.setText("LIVE - V7.4");
-            tvStatus.setTextColor(0xFF00FF00);
-            btnConnect.setText("CONNECTED");
-            isLive=true;
-            startRead();
-            tvLog.append("\n\nCONNECTED CDC 115200!\nDTR OFF RTS OFF ANTI-MATI\nMenunggu $OK,RPM,800,MAP,98,ADV,9*");
-
-        }catch(Exception e){
-            tvLog.setText("CONNECT ERR: "+e.getMessage());
-        }
+            tvStatus.setText("LIVE - V7.4"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); isLive=true; startRead();
+            tvLog.setText("CONNECTED! Kirim $GET* untuk load MAP!");
+            sendCmd("$GET*\n");
+        }catch(Exception e){ tvLog.setText("ERR: "+e.getMessage()); }
     }
 
-    void setDtrRts(){
-        try{
-            if(conn==null) return;
-            int val=(dtrOn?1:0)|(rtsOn?2:0);
-            conn.controlTransfer(0x40,0xA4,val,0,null,0,1000);
-            conn.controlTransfer(0x21,0x22,val,0,null,0,1000);
-        }catch(Exception e){}
-    }
-
-    void sendCmd(String s){
-        try{
-            if(conn!=null && epOut!=null){
-                conn.bulkTransfer(epOut,s.getBytes(),s.length(),1000);
-                tvLog.append("\n> "+s.trim());
-            }
-        }catch(Exception e){}
-    }
-
+    void setDtrRts(){ try{ if(conn==null) return; int val=(dtrOn?1:0)|(rtsOn?2:0); conn.controlTransfer(0x21,0x22,val,0,null,0,1000); }catch(Exception e){} }
+    void sendCmd(String s){ try{ if(conn!=null && epOut!=null) conn.bulkTransfer(epOut,s.getBytes(),s.length(),1000); }catch(Exception e){} }
     void startRead(){
         new Thread(()->{
-            byte[] buf=new byte[4096];
-            StringBuilder sb=new StringBuilder();
+            byte[] buf=new byte[4096]; StringBuilder sb=new StringBuilder();
             while(isLive){
                 try{
                     int n=conn.bulkTransfer(epIn,buf,buf.length,1000);
                     if(n>0){
-                        String chunk=new String(buf,0,n);
-                        sb.append(chunk);
+                        String chunk=new String(buf,0,n); sb.append(chunk);
                         String all=sb.toString();
                         while(all.contains("*")){
-                            int idx=all.indexOf("*");
-                            String line=all.substring(0,idx+1);
-                            all=all.substring(idx+1);
-                            parse(line);
+                            int idx=all.indexOf("*"); String line=all.substring(0,idx+1); all=all.substring(idx+1); parse(line);
                         }
                         sb=new StringBuilder(all);
                     }
@@ -192,46 +150,28 @@ public class MainActivity extends Activity {
             }
         }).start();
     }
-
     void parse(String line){
         runOnUiThread(()->{
             try{
-                String clean = line.trim().replace("\r","").replace("\n","");
-                if(clean.length()<5) return;
-                // Hanya proses yang $OK,RPM,
-                if(!clean.contains("RPM,") || !clean.contains("MAP,") || !clean.contains("ADV,")){
-                    if(clean.startsWith("$")) tvLog.append("\n"+clean);
-                    return;
-                }
-                // clean = $OK,RPM,800,MAP,98,ADV,9*
-                String noStar = clean.replace("*","").replace("$OK,","").replace("$","").trim();
-                // noStar = RPM,800,MAP,98,ADV,9
-                String[] p = noStar.split(",");
-                if(p.length>=6){
-                    int rpm=0, map=0, adv=0;
+                String clean=line.trim().replace("\r","").replace("\n","");
+                if(clean.startsWith("$OK,RPM,")){
+                    String noStar=clean.replace("*","").replace("$OK,","").replace("$","");
+                    String[] p=noStar.split(",");
+                    int rpm=0,map=0,adv=0;
                     for(int i=0;i<p.length-1;i++){
                         if(p[i].equals("RPM")) rpm=Integer.parseInt(p[i+1]);
                         if(p[i].equals("MAP")) map=Integer.parseInt(p[i+1]);
                         if(p[i].equals("ADV")) adv=Integer.parseInt(p[i+1]);
                     }
-                    tvRpm.setText(String.valueOf(rpm));
-                    tvMap.setText(map+" kPa");
-                    tvAdv.setText(adv+"°");
-                    tvRowCol.setText("LIVE");
-                    tvStatus.setText("LIVE - "+rpm+" RPM");
-                    tvStatus.setTextColor(0xFF00FF00);
-                }
-            }catch(Exception e){
-                // tvLog.append("\nParse ERR:"+line);
-            }
+                    tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+"°"); tvStatus.setText("LIVE - "+rpm+" RPM"); highlightCell(rpm,map);
+                }else if(clean.startsWith("$MAPR,")){
+                    String[] p=clean.replace("*","").split(",");
+                    int row=Integer.parseInt(p[1]);
+                    for(int c=0;c<16 && c+2<p.length;c++){ mapData[row][c]=Integer.parseInt(p[c+2]); try{ cellViews[row][c].setText(String.valueOf(mapData[row][c])); }catch(Exception e){} }
+                    tvLog.setText("MAP row "+row+" loaded: "+clean.substring(0,40));
+                }else if(clean.startsWith("$OK,GET_DONE")){ tvLog.setText("GET MAP DONE! Silakan tuning klik grid!"); Toast.makeText(this,"MAP LOADED!",Toast.LENGTH_SHORT).show(); }
+            }catch(Exception e){}
         });
     }
-
-    @Override
-    protected void onDestroy(){
-        super.onDestroy();
-        isLive=false;
-        try{ if(conn!=null) conn.close(); }catch(Exception e){}
-        try{ unregisterReceiver(usbReceiver); }catch(Exception e){}
-    }
-                        }
+    @Override protected void onDestroy(){ super.onDestroy(); isLive=false; try{ if(conn!=null) conn.close(); }catch(Exception e){} try{ unregisterReceiver(usbReceiver); }catch(Exception e){} }
+                                                      }
