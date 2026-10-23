@@ -10,88 +10,46 @@
         android:orientation="vertical"
         android:padding="8dp">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="TARUNA GRID V7.4"
-            android:textColor="#FF9800"
-            android:textSize="18sp"
-            android:textStyle="bold"/>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp">
-
-            <TextView
-                android:id="@+id/tv_rpm"
-                android:layout_width="0dp"
-                android:layout_height="60dp"
-                android:layout_weight="1"
-                android:background="#222"
-                android:gravity="center"
-                android:text="---"
-                android:textColor="#00FF00"
-                android:textSize="20sp"
-                android:textStyle="bold"/>
-
-            <TextView
-                android:id="@+id/tv_map"
-                android:layout_width="0dp"
-                android:layout_height="60dp"
-                android:layout_weight="1"
-                android:layout_marginLeft="4dp"
-                android:background="#222"
-                android:gravity="center"
-                android:text="---"
-                android:textColor="#00BFFF"
-                android:textSize="16sp"
-                android:textStyle="bold"/>
-
-            <TextView
-                android:id="@+id/tv_adv"
-                android:layout_width="0dp"
-                android:layout_height="60dp"
-                android:layout_weight="1"
-                android:layout_marginLeft="4dp"
-                android:background="#222"
-                android:gravity="center"
-                android:text="---"
-                android:textColor="#FF00FF"
-                android:textSize="18sp"
-                android:textStyle="bold"/>
-        </LinearLayout>
-
-        <TextView android:id="@+id/tv_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="READY" android:textColor="#00FF00" android:layout_marginTop="4dp"/>
-        <TextView android:id="@+id/tv_rowcol" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ROW - COL -" android:textColor="#888" android:textSize="10sp"/>
-        <TextView android:id="@+id/tv" android:layout_width="match_parent" android:layout_height="100dp" android:background="#111" android:textColor="#0F0" android:textSize="10sp" android:scrollbars="vertical" android:layout_marginTop="4dp"/>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="TARUNA GRID V7.4 JUMBO" android:textColor="#FF9800" android:textSize="20sp" android:textStyle="bold"/>
 
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
-            <Button android:id="@+id/btn_dtr" android:layout_width="0dp" android:layout_weight="1" android:layout_height="40dp" android:text="DTR OFF"/>
-            <Button android:id="@+id/btn_rts" android:layout_width="0dp" android:layout_weight="1" android:layout_height="40dp" android:text="RTS OFF" android:layout_marginLeft="4dp"/>
-            <Button android:id="@+id/btn_connect" android:layout_width="0dp" android:layout_weight="1" android:layout_height="40dp" android:text="CONNECT" android:background="#FF9800" android:layout_marginLeft="4dp"/>
+            <TextView android:id="@+id/tv_rpm" android:layout_width="0dp" android:layout_weight="1" android:layout_height="80dp" android:background="#222" android:gravity="center" android:text="---" android:textColor="#00FF00" android:textSize="28sp" android:textStyle="bold"/>
+            <TextView android:id="@+id/tv_map" android:layout_width="0dp" android:layout_weight="1" android:layout_height="80dp" android:layout_marginLeft="4dp" android:background="#222" android:gravity="center" android:text="---" android:textColor="#00BFFF" android:textSize="22sp" android:textStyle="bold"/>
+            <TextView android:id="@+id/tv_adv" android:layout_width="0dp" android:layout_weight="1" android:layout_height="80dp" android:layout_marginLeft="4dp" android:background="#222" android:gravity="center" android:text="---" android:textColor="#FF00FF" android:textSize="24sp" android:textStyle="bold"/>
+        </LinearLayout>
+
+        <TextView android:id="@+id/tv_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="READY" android:textColor="#00FF00" android:textSize="14sp" android:layout_marginTop="4dp"/>
+        <TextView android:id="@+id/tv_rowcol" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ROW - COL -" android:textColor="#FFFF00" android:textSize="12sp" android:textStyle="bold"/>
+        <TextView android:id="@+id/tv" android:layout_width="match_parent" android:layout_height="80dp" android:background="#111" android:textColor="#0F0" android:textSize="11sp" android:layout_marginTop="4dp"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="8dp">
+            <Button android:id="@+id/btn_dtr" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:text="DTR OFF" android:textSize="12sp"/>
+            <Button android:id="@+id/btn_rts" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:text="RTS OFF" android:textSize="12sp" android:layout_marginLeft="4dp"/>
+            <Button android:id="@+id/btn_connect" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:text="CONNECT" android:background="#FF9800" android:textSize="12sp" android:layout_marginLeft="4dp"/>
         </LinearLayout>
 
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="4dp">
-            <Button android:id="@+id/btn_getmap" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:text="GET MAP ($GET*)" android:background="#444"/>
-            <Button android:id="@+id/btn_savemap" android:layout_width="0dp" android:layout_weight="1" android:layout_height="45dp" android:text="SAVE ($SAVE*)" android:background="#00FF00" android:layout_marginLeft="4dp"/>
+            <Button android:id="@+id/btn_getmap" android:layout_width="0dp" android:layout_weight="1" android:layout_height="50dp" android:text="GET MAP" android:background="#444" android:textSize="14sp"/>
+            <Button android:id="@+id/btn_savemap" android:layout_width="0dp" android:layout_weight="1" android:layout_height="50dp" android:text="SAVE MAP" android:background="#00FF00" android:textSize="14sp" android:layout_marginLeft="4dp"/>
         </LinearLayout>
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="IGNITION MAP 16x16 (REAL DEG) - KLIK +1 / LONG -1" android:textColor="#FF9800" android:textStyle="bold" android:gravity="center" android:layout_marginTop="12dp"/>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="IGNITION MAP 16x16 JUMBO - KLIK +1 / TAHAN -1 / KUNING=LIVE" android:textColor="#FF9800" android:textStyle="bold" android:gravity="center" android:layout_marginTop="12dp" android:textSize="12sp"/>
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="RPM BINS: 500 700 900 1100 1300 1500 1800 2200 2600 3000 3500 4000 4500 5000 5750 6500" android:textSize="7sp" android:textColor="#888"/>
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="MAP BINS: 20 25 30 35 40 45 50 55 60 65 70 75 80 85 92 100" android:textSize="7sp" android:textColor="#888" android:layout_marginBottom="4dp"/>
-
-        <GridLayout
-            android:id="@+id/grid_map"
+        <!-- INI KUNCI JUMBO NYA BOS - BISA SCROLL KIRI KANAN! -->
+        <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:columnCount="17"
-            android:rowCount="17"
-            android:background="#222"/>
+            android:layout_marginTop="8dp"
+            android:background="#222">
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Kuning = posisi LIVE sekarang" android:textColor="#FFFF00" android:textSize="10sp" android:layout_marginTop="8dp"/>
+            <GridLayout
+                android:id="@+id/grid_map"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:columnCount="17"
+                android:rowCount="17"/>
+
+        </HorizontalScrollView>
 
     </LinearLayout>
 </ScrollView>
