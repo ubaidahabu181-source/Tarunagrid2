@@ -122,10 +122,17 @@ public class MainActivity extends Activity {
             if(!um.hasPermission(dev)){ um.requestPermission(dev,permissionIntent); tvLog.setText("Minta Permission..."); return; }
             conn=um.openDevice(dev); if(conn==null){ tvLog.setText("Gagal open"); return; }
             for(int i=0;i<dev.getInterfaceCount();i++) try{ conn.claimInterface(dev.getInterface(i),true); }catch(Exception e){}
+            // SET BAUD 115200 CDC ACM
+            try{
+                // SET_LINE_CODING 115200 8N1
+                byte[] lineCoding = new byte[]{ (byte)0x00, (byte)0xC2, (byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x08 };
+                conn.controlTransfer(0x21, 0x20, 0, 0, lineCoding, lineCoding.length, 1000);
+                conn.controlTransfer(0x21, 0x22, 3, 0, null, 0, 1000); // DTR+RTS ON
+            }catch(Exception e){}
             epIn=null; epOut=null;
             for(int i=0;i<dev.getInterfaceCount();i++){ UsbInterface intf=dev.getInterface(i); for(int j=0;j<intf.getEndpointCount();j++){ UsbEndpoint ep=intf.getEndpoint(j); if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){ if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep; else epOut=ep; } } }
             if(epIn==null || epOut==null){ tvLog.setText("Endpoint null, cabut colok"); return; }
-            tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); isLive=true; startRead(); tvLog.setText("CONNECTED"); sendGet();
+            tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); isLive=true; startRead(); tvLog.setText("CONNECTED - Menunggu data..."); sendGet();
         }catch(Exception e){ tvLog.setText("ERR:"+e.getMessage()); }
     }
 
@@ -137,20 +144,33 @@ public class MainActivity extends Activity {
         runOnUiThread(new Runnable(){
             public void run(){
                 try{
+                    if(line==null) return;
+                    tvLog.setText(line.trim());
                     String clean=line.trim().replace("\r","").replace("\n","");
+                    int idxDollar=clean.indexOf("$");
+                    if(idxDollar>=0) clean=clean.substring(idxDollar);
                     if(clean.length()<5) return;
-                    if(clean.startsWith("$OK,RPM,")){
+                    if(clean.contains("$OK,RPM,")){
                         String noStar=clean.replace("*","").replace("$OK,","").replace("$","");
                         String[] p=noStar.split(",");
                         int rpm=0; int map=0; int adv=0;
                         for(int i=0;i<p.length-1;i++){
-                            if(p[i].equals("RPM")) rpm=Integer.parseInt(p[i+1]);
-                            if(p[i].equals("MAP")) map=Integer.parseInt(p[i+1]);
-                            if(p[i].equals("ADV")) adv=Integer.parseInt(p[i+1]);
+                            if(p[i].equals("RPM")) try{ rpm=Integer.parseInt(p[i+1]); }catch(Exception e){}
+                            if(p[i].equals("MAP")) try{ map=Integer.parseInt(p[i+1]); }catch(Exception e){}
+                            if(p[i].equals("ADV")) try{ adv=Integer.parseInt(p[i+1]); }catch(Exception e){}
                         }
-                        tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm); highlightCell(rpm,map);
-                    }else if(clean.startsWith("$MAPR,")){
-                        String[] p=clean.replace("*","").split(","); int row=Integer.parseInt(p[1]); for(int c=0;c<16 && c+2<p.length;c++){ mapData[row][c]=Integer.parseInt(p[c+2]); cellViews[row][c].setText(String.valueOf(mapData[row][c])); }
+                        tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm+" RPM"); tvRowCol.setText("ROW? COL? "+rpm+"/"+map); highlightCell(rpm,map);
+                    }else if(clean.startsWith("$MAPR,") || clean.contains("$MAPR,")){
+                        String c2=clean.substring(clean.indexOf("$MAPR,"));
+                        String[] p=c2.replace("*","").split(","); 
+                        try{
+                            int row=Integer.parseInt(p[1]); 
+                            for(int c=0;c<16 && c+2<p.length;c++){ 
+                                try{ mapData[row][c]=Integer.parseInt(p[c+2]); cellViews[row][c].setText(String.valueOf(mapData[row][c])); }catch(Exception e){}
+                            }
+                        }catch(Exception e){}
+                    }else if(clean.contains("V7.4")){
+                        tvStatus.setText(clean.replace("*",""));
                     }
                 }catch(Exception e){}
             }
