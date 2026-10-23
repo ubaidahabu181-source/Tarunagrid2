@@ -4,15 +4,41 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:background="#000000">
+    android:background="#000000"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TARUNA GRID V7.4"
+        android:textColor="#FF7A18"
+        android:textSize="22sp"
+        android:textStyle="bold"/>
+
+    <TextView
+        android:id="@+id/tv_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="STATUS: READY - V7.4 BOS + OTG"
+        android:textColor="#00FF00"
+        android:layout_marginTop="10dp"/>
 
     <TextView
         android:id="@+id/tv"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="TARUNA GRID LIVE"
-        android:textColor="#00FF00"
-        android:textSize="24sp"
-        android:textStyle="bold" />
+        android:text="Firmware: V7.4 REAL DEG + LIVE TUNING OTG&#10;Protocol: $OK,RPM,MAP,ADV*&#10;$GET* $SET* $SAVE*&#10;&#10;Prosedur Anti-Mati:&#10;1. Mesin mati&#10;2. Colok OTG USB&#10;3. CONNECT (DTR OFF RTS OFF)&#10;4. Stater mesin"
+        android:textColor="#FFFFFF"
+        android:background="#1A1A1A"
+        android:padding="12dp"
+        android:layout_marginTop="20dp"/>
+
+    <Button
+        android:id="@+id/btn_connect"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:text="CONNECT LGT8F"
+        android:layout_marginTop="20dp"
+        android:backgroundTint="#FF7A18"/>
 
 </LinearLayout>
