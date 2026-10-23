@@ -303,5 +303,4 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy(){ super.onDestroy(); isLive=false; try{ if(conn!=null) conn.close(); }catch(Exception e){} try{ unregisterReceiver(usbReceiver); }catch(Exception e){} }
-    }
-                
+}
