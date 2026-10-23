@@ -105,12 +105,14 @@ public class MainActivity extends Activity {
 
     void sendGet(){ 
         Toast.makeText(this,"GET MAP $GET*...",Toast.LENGTH_SHORT).show();
-        tvLog.setText("Kirim $GET* ke LGT... tunggu MAPR...");
+        // DTR udah ON dari CONNECT, jadi ga reset lagi!
+        tvLog.setText("Kirim $GET*\n (DTR ON)...");
         sendCmd("$GET*\n");
     }
     void sendSave(){ 
         Toast.makeText(this,"SAVE MAP $SAVE*...",Toast.LENGTH_SHORT).show();
         tvLog.setText("Kirim $SAVE* ke LGT...");
+        try{ conn.controlTransfer(0x21,0x22,1,0,null,0,500); dtrOn=true; btnDtr.setText("DTR ON"); }catch(Exception e){}
         sendCmd("$SAVE*\n");
     }
     void sendSet(int r,int c,int val){ 
@@ -140,26 +142,29 @@ public class MainActivity extends Activity {
             try{
                 byte[] lineCoding = new byte[]{ (byte)0x00, (byte)0xC2, (byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x08 };
                 conn.controlTransfer(0x21, 0x20, 0, 0, lineCoding, lineCoding.length, 1000);
-                // JANGAN SET DTR+RTS 3 pas connect! Ini bikin LGT8F RESET dan keluar sampah $�D�$!
-                // conn.controlTransfer(0x21, 0x22, 3, 0, null, 0, 1000);
-                conn.controlTransfer(0x21, 0x22, 0, 0, null, 0, 1000); // DTR OFF RTS OFF biar ga reset
+                // LGT8F butuh DTR ON buat nerima $GET* dari HP, kalau OFF cuma bisa kirim RPM doang!
+                // Ya, DTR ON bikin LGT reset sekali (keluar sampah $[STRIPPED 7 bytes]$), tapi abis itu stabil!
+                // Makanya kita DTR ON di sini, tunggu 2 detik boot, baru kirim GET!
+                conn.controlTransfer(0x21, 0x22, 1, 0, null, 0, 1000); // DTR ON RTS OFF - biar bisa kirim command, reset sekali aja
+                dtrOn=true; rtsOn=false;
+                btnDtr.setText("DTR ON"); btnRts.setText("RTS OFF");
             }catch(Exception e){}
             epIn=null; epOut=null;
             for(int i=0;i<dev.getInterfaceCount();i++){ UsbInterface intf=dev.getInterface(i); for(int j=0;j<intf.getEndpointCount();j++){ UsbEndpoint ep=intf.getEndpoint(j); if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){ if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep; else epOut=ep; } } }
             if(epIn==null || epOut==null){ tvLog.setText("Endpoint null, cabut colok"); return; }
             tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); btnGetMap.setEnabled(true); btnSaveMap.setEnabled(true); btnGetMap.setAlpha(1f); btnSaveMap.setAlpha(1f); isLive=true; startRead(); 
-            tvLog.setText("CONNECTED - Tunggu 1.5 detik biar LGT stabil..."); 
-            // Delay GET MAP 1.5 detik biar LGT ga lagi boot (tanda $OK,V7.4 muncul dulu)
+            tvLog.setText("CONNECTED DTR ON - LGT reset 1x, tunggu 2 detik boot..."); 
+            // LGT abis DTR ON reset, tunggu 2 detik sampe V7.4 muncul lagi baru GET
             new android.os.Handler().postDelayed(new Runnable(){ public void run(){ 
-                tvLog.setText("Kirim $GET* ke LGT (auto)...");
+                tvLog.setText("LGT stabil, kirim $GET*...");
                 sendGet(); 
-            }}, 1500);
+            }}, 2000);
         }catch(Exception e){ tvLog.setText("ERR:"+e.getMessage()); }
     }
 
 
     void setDtrRts(){ try{ if(conn==null) return; int v=(dtrOn?1:0)|(rtsOn?2:0); conn.controlTransfer(0x21,0x22,v,0,null,0,1000); }catch(Exception e){} }
-    void sendCmd(String s){ try{ if(conn!=null && epOut!=null) conn.bulkTransfer(epOut,s.getBytes(),s.length(),1000); }catch(Exception e){} }
+    void sendCmd(String s){ try{ if(conn!=null && epOut!=null){ int r=conn.bulkTransfer(epOut,s.getBytes(),s.length(),1000); tvLog.setText("Kirim "+s.trim()+" -> "+r+" bytes"); } }catch(Exception e){ tvLog.setText("SEND ERR "+e.getMessage()); } }
     void startRead(){ new Thread(new Runnable(){ public void run(){ byte[] buf=new byte[4096]; StringBuilder sb=new StringBuilder(); while(isLive){ try{ int n=conn.bulkTransfer(epIn,buf,buf.length,1000); if(n>0){ String chunk=new String(buf,0,n); sb.append(chunk); String all=sb.toString(); while(all.contains("*")){ int idx=all.indexOf("*"); String line=all.substring(0,idx+1); all=all.substring(idx+1); parse(line); } sb=new StringBuilder(all); } }catch(Exception e){} } }}).start(); }
 
     void parse(String line){
