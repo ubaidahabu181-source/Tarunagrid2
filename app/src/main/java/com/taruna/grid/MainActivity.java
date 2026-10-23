@@ -13,6 +13,7 @@ import android.view.Gravity;
 import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends Activity {
     TextView tvLog, tvStatus, tvRpm, tvMap, tvAdv, tvRowCol;
@@ -103,30 +104,29 @@ public class MainActivity extends Activity {
     void sendSet(int r,int c,int val){ StringBuilder sb=new StringBuilder(); sb.append("$SET,"); sb.append(r); sb.append(","); sb.append(c); sb.append(","); sb.append(val); sb.append("*\n"); sendCmd(sb.toString()); }
 
     void connect(){
-    try{
-        UsbManager um=(UsbManager)getSystemService(USB_SERVICE);
-        tvLog.setText("CEK USB... Jumlah device: "+um.getDeviceList().size());
-        if(um.getDeviceList().isEmpty()){
-            tvLog.setText("No USB! 1.Cek OTG ON di Setting 2.Ganti kabel OTG 3.Cabut colok lagi");
-            Toast.makeText(this,"No USB! Aktifin OTG di Setting HP dulu bos!",Toast.LENGTH_LONG).show();
-            return;
-        }
-        for(UsbDevice d : um.getDeviceList().values()){
-            tvLog.setText("KETEMU: VID:"+d.getVendorId()+" PID:"+d.getProductId()+" "+d.getDeviceName());
-        }
-        UsbDevice dev=um.getDeviceList().values().iterator().next();
-        if(!um.hasPermission(dev)){
-            tvLog.setText("Minta Permission USB...");
-            um.requestPermission(dev,permissionIntent);
-            return;
-        }
-        conn=um.openDevice(dev); if(conn==null){ tvLog.setText("Gagal open!"); return; }
-        for(int i=0;i<dev.getInterfaceCount();i++) try{ conn.claimInterface(dev.getInterface(i),true); }catch(Exception e){}
-        epIn=null; epOut=null;
-        for(int i=0;i<dev.getInterfaceCount();i++){ UsbInterface intf=dev.getInterface(i); for(int j=0;j<intf.getEndpointCount();j++){ UsbEndpoint ep=intf.getEndpoint(j); if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){ if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep; else epOut=ep; } } }
-        if(epIn==null || epOut==null){ tvLog.setText("Endpoint ga ketemu, coba cabut colok lagi"); return; }
-        tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); isLive=true; startRead(); tvLog.setText("CONNECTED!"); sendGet();
-    }catch(Exception e){ tvLog.setText("ERR: "+e.getMessage()); }
+        try{
+            UsbManager um=(UsbManager)getSystemService(USB_SERVICE);
+            int cnt=um.getDeviceList().size();
+            tvLog.setText("CEK USB device:"+cnt);
+            if(cnt==0){
+                tvLog.setText("No USB! Cek OTG ON + Ganti kabel");
+                Toast.makeText(this,"No USB! Aktifkan OTG di Setting HP",Toast.LENGTH_LONG).show();
+                return;
+            }
+            String info="";
+            for(UsbDevice d: um.getDeviceList().values()){
+                info+=d.getVendorId()+"/"+d.getProductId()+" ";
+            }
+            tvLog.setText("Found: "+info);
+            UsbDevice dev=um.getDeviceList().values().iterator().next();
+            if(!um.hasPermission(dev)){ um.requestPermission(dev,permissionIntent); tvLog.setText("Minta Permission..."); return; }
+            conn=um.openDevice(dev); if(conn==null){ tvLog.setText("Gagal open"); return; }
+            for(int i=0;i<dev.getInterfaceCount();i++) try{ conn.claimInterface(dev.getInterface(i),true); }catch(Exception e){}
+            epIn=null; epOut=null;
+            for(int i=0;i<dev.getInterfaceCount();i++){ UsbInterface intf=dev.getInterface(i); for(int j=0;j<intf.getEndpointCount();j++){ UsbEndpoint ep=intf.getEndpoint(j); if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){ if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep; else epOut=ep; } } }
+            if(epIn==null || epOut==null){ tvLog.setText("Endpoint null, cabut colok"); return; }
+            tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); isLive=true; startRead(); tvLog.setText("CONNECTED"); sendGet();
+        }catch(Exception e){ tvLog.setText("ERR:"+e.getMessage()); }
     }
 
     void setDtrRts(){ try{ if(conn==null) return; int v=(dtrOn?1:0)|(rtsOn?2:0); conn.controlTransfer(0x21,0x22,v,0,null,0,1000); }catch(Exception e){} }
@@ -146,6 +146,20 @@ public class MainActivity extends Activity {
                         for(int i=0;i<p.length-1;i++){
                             if(p[i].equals("RPM")) rpm=Integer.parseInt(p[i+1]);
                             if(p[i].equals("MAP")) map=Integer.parseInt(p[i+1]);
+                            if(p[i].equals("ADV")) adv=Integer.parseInt(p[i+1]);
+                        }
+                        tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm); highlightCell(rpm,map);
+                    }else if(clean.startsWith("$MAPR,")){
+                        String[] p=clean.replace("*","").split(","); int row=Integer.parseInt(p[1]); for(int c=0;c<16 && c+2<p.length;c++){ mapData[row][c]=Integer.parseInt(p[c+2]); cellViews[row][c].setText(String.valueOf(mapData[row][c])); }
+                    }
+                }catch(Exception e){}
+            }
+        });
+    }
+
+    @Override protected void onDestroy(){ super.onDestroy(); isLive=false; try{ if(conn!=null) conn.close(); }catch(Exception e){} try{ unregisterReceiver(usbReceiver); }catch(Exception e){} }
+}
+;
                             if(p[i].equals("ADV")) adv=Integer.parseInt(p[i+1]);
                         }
                         tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm); highlightCell(rpm,map);
