@@ -103,17 +103,30 @@ public class MainActivity extends Activity {
     void sendSet(int r,int c,int val){ StringBuilder sb=new StringBuilder(); sb.append("$SET,"); sb.append(r); sb.append(","); sb.append(c); sb.append(","); sb.append(val); sb.append("*\n"); sendCmd(sb.toString()); }
 
     void connect(){
-        try{
-            UsbManager um=(UsbManager)getSystemService(USB_SERVICE);
-            if(um.getDeviceList().isEmpty()){ tvLog.setText("No USB"); return; }
-            UsbDevice dev=um.getDeviceList().values().iterator().next();
-            if(!um.hasPermission(dev)){ um.requestPermission(dev,permissionIntent); return; }
-            conn=um.openDevice(dev); if(conn==null) return;
-            for(int i=0;i<dev.getInterfaceCount();i++) try{ conn.claimInterface(dev.getInterface(i),true); }catch(Exception e){}
-            epIn=null; epOut=null;
-            for(int i=0;i<dev.getInterfaceCount();i++){ UsbInterface intf=dev.getInterface(i); for(int j=0;j<intf.getEndpointCount();j++){ UsbEndpoint ep=intf.getEndpoint(j); if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){ if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep; else epOut=ep; } } }
-            tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); isLive=true; startRead(); tvLog.setText("CONNECTED"); sendGet();
-        }catch(Exception e){ tvLog.setText("ERR"); }
+    try{
+        UsbManager um=(UsbManager)getSystemService(USB_SERVICE);
+        tvLog.setText("CEK USB... Jumlah device: "+um.getDeviceList().size());
+        if(um.getDeviceList().isEmpty()){
+            tvLog.setText("No USB! 1.Cek OTG ON di Setting 2.Ganti kabel OTG 3.Cabut colok lagi");
+            Toast.makeText(this,"No USB! Aktifin OTG di Setting HP dulu bos!",Toast.LENGTH_LONG).show();
+            return;
+        }
+        for(UsbDevice d : um.getDeviceList().values()){
+            tvLog.setText("KETEMU: VID:"+d.getVendorId()+" PID:"+d.getProductId()+" "+d.getDeviceName());
+        }
+        UsbDevice dev=um.getDeviceList().values().iterator().next();
+        if(!um.hasPermission(dev)){
+            tvLog.setText("Minta Permission USB...");
+            um.requestPermission(dev,permissionIntent);
+            return;
+        }
+        conn=um.openDevice(dev); if(conn==null){ tvLog.setText("Gagal open!"); return; }
+        for(int i=0;i<dev.getInterfaceCount();i++) try{ conn.claimInterface(dev.getInterface(i),true); }catch(Exception e){}
+        epIn=null; epOut=null;
+        for(int i=0;i<dev.getInterfaceCount();i++){ UsbInterface intf=dev.getInterface(i); for(int j=0;j<intf.getEndpointCount();j++){ UsbEndpoint ep=intf.getEndpoint(j); if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){ if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep; else epOut=ep; } } }
+        if(epIn==null || epOut==null){ tvLog.setText("Endpoint ga ketemu, coba cabut colok lagi"); return; }
+        tvStatus.setText("LIVE JUMBO"); tvStatus.setTextColor(0xFF00FF00); btnConnect.setText("CONNECTED"); isLive=true; startRead(); tvLog.setText("CONNECTED!"); sendGet();
+    }catch(Exception e){ tvLog.setText("ERR: "+e.getMessage()); }
     }
 
     void setDtrRts(){ try{ if(conn==null) return; int v=(dtrOn?1:0)|(rtsOn?2:0); conn.controlTransfer(0x21,0x22,v,0,null,0,1000); }catch(Exception e){} }
