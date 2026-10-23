@@ -19,7 +19,7 @@ public class MainActivity extends Activity {
     TextView tvLog, tvStatus, tvRpm, tvMap, tvAdv, tvRowCol;
     Button btnDtr, btnRts, btnConnect, btnGetMap, btnSaveMap;
     GridLayout gridMap;
-    boolean dtrOn=false, rtsOn=true; // DTR OFF = tidak reset mesin - SimpleUsbTerminal hijau!
+    boolean dtrOn=true, rtsOn=true;
     UsbDeviceConnection conn=null;
     UsbEndpoint epIn=null, epOut=null;
     boolean isLive=false;
@@ -69,9 +69,7 @@ public class MainActivity extends Activity {
         btnGetMap.setOnClickListener(v-> sendGet());
         btnSaveMap.setOnClickListener(v-> sendSave());
         btnConnect.setOnClickListener(v-> connect());
-        btnDtr.setText("DTR OFF"); btnRts.setText("RTS ON");
-        btnGetMap.setEnabled(true); btnSaveMap.setEnabled(true);
-        btnGetMap.setAlpha(1f); btnSaveMap.setAlpha(1f);
+        btnDtr.setText("DTR ON"); btnRts.setText("RTS ON");
     }
 
     void initMapData(){ for(int r=0;r<16;r++) for(int c=0;c<16;c++) mapData[r][c]=9; }
@@ -107,6 +105,7 @@ public class MainActivity extends Activity {
         }catch(Exception e){}
     }
 
+    // SERIAL USB MODIF - FINAL FIX
     void connect(){
         try{
             UsbManager um=(UsbManager)getSystemService(USB_SERVICE);
@@ -127,20 +126,31 @@ public class MainActivity extends Activity {
             }
             conn=um.openDevice(dev);
             if(conn==null){ tvLog.setText("Gagal open device"); return; }
+            
+            // Claim semua interface
+            UsbInterface dataIf=null;
             for(int i=0;i<dev.getInterfaceCount();i++){
                 UsbInterface intf=dev.getInterface(i);
                 try{ conn.claimInterface(intf,true); }catch(Exception e){}
+                // Cari interface yang punya 2 bulk endpoint (data interface)
+                if(intf.getEndpointCount()>=2) dataIf=intf;
             }
+            
+            // Set line coding 115200 8N1 - SAMA KAYAK TERMINAL YANG JALAN!
             try{
                 byte[] lineCoding = new byte[]{ (byte)0x00, (byte)0xC2, (byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x08 };
                 conn.controlTransfer(0x21, 0x20, 0, 0, lineCoding, lineCoding.length, 1000);
             }catch(Exception e){}
-            // DTR OFF RTS ON = 2 - TIDAK RESET MESIN - SimpleUsbTerminal hijau!
+            
+            // FIX PENTING: DTR ON + RTS ON (3) - TERMINAL YANG JALAN DI FOTO 10:09 PAKE INI!
+            // Kalau DTR OFF atau RTS OFF, LGT cuma bisa SET (pendek) tapi GET (panjang) gagal!
             try{
-                dtrOn=false; rtsOn=true;
-                conn.controlTransfer(0x21, 0x22, 2, 0, null, 0, 1000);
-                btnDtr.setText("DTR OFF"); btnRts.setText("RTS ON");
+                conn.controlTransfer(0x21, 0x22, 3, 0, null, 0, 1000);
+                dtrOn=true; rtsOn=true;
+                btnDtr.setText("DTR ON"); btnRts.setText("RTS ON");
             }catch(Exception e){}
+            
+            // Cari endpoint bulk IN dan OUT
             epIn=null; epOut=null;
             for(int i=0;i<dev.getInterfaceCount();i++){
                 UsbInterface intf=dev.getInterface(i);
@@ -156,12 +166,19 @@ public class MainActivity extends Activity {
                 tvLog.setText("Endpoint null! Cabut colok OTG");
                 return;
             }
-            tvStatus.setText("CONNECTED DTR OFF RTS ON - NO RESET"); tvStatus.setTextColor(0xFF00FF00);
+            
+            tvStatus.setText("CONNECTED DTR ON RTS ON"); tvStatus.setTextColor(0xFF00FF00);
             btnConnect.setText("CONNECTED"); btnGetMap.setEnabled(true); btnSaveMap.setEnabled(true);
             btnGetMap.setAlpha(1f); btnSaveMap.setAlpha(1f);
             isLive=true; rxBuffer.setLength(0);
             startRead();
-            tvLog.setText("CONNECTED - SimpleUsbTerminal mode DTR OFF tidak reset mesin\nKlik GET MAP untuk load 16x16\n");
+            tvLog.setText("CONNECTED - LGT reset 1x, tunggu boot 2 detik...");
+            // Tunggu LGT boot setelah DTR ON (reset), baru auto GET MAP
+            new android.os.Handler().postDelayed(()->{
+                tvLog.setText("Kirim $GET* auto...");
+                sendGet();
+            }, 2500);
+            
         }catch(Exception e){ tvLog.setText("ERR connect: "+e.getMessage()); }
     }
 
@@ -186,6 +203,7 @@ public class MainActivity extends Activity {
     void sendGet(){
         Toast.makeText(this,"GET MAP $GET*",Toast.LENGTH_SHORT).show();
         sendCmd("$GET*\n");
+        // Kirim lagi 600ms kemudian kalau pertama ketabrak RPM
         new android.os.Handler().postDelayed(()-> sendCmd("$GET*\n"), 600);
     }
     void sendSave(){
@@ -207,6 +225,7 @@ public class MainActivity extends Activity {
                         String chunk=new String(buf,0,n);
                         rxBuffer.append(chunk);
                         String all=rxBuffer.toString();
+                        // Split by * karena semua command diakhiri *
                         while(all.contains("*")){
                             int idx=all.indexOf("*");
                             String line=all.substring(0,idx+1);
@@ -226,10 +245,13 @@ public class MainActivity extends Activity {
         runOnUiThread(()->{
             try{
                 if(line==null) return;
-                String clean=line.trim().replace("\r","").replace("\n","");
+                String clean=line.trim().replace("\r","").replace("\n","").replace("
+","").replace("
+","");
                 int idxDollar=clean.indexOf("$");
                 if(idxDollar>=0) clean=clean.substring(idxDollar);
                 if(clean.length()<5) return;
+                
                 if(clean.contains("$OK,RPM,")){
                     String noStar=clean.replace("*","").replace("$OK,","").replace("$","");
                     String[] p=noStar.split(",");
@@ -281,4 +303,4 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy(){ super.onDestroy(); isLive=false; try{ if(conn!=null) conn.close(); }catch(Exception e){} try{ unregisterReceiver(usbReceiver); }catch(Exception e){} }
-                     }
+}
