@@ -106,12 +106,12 @@ public class MainActivity extends Activity {
     void sendGet(){ 
         Toast.makeText(this,"GET MAP $GET*...",Toast.LENGTH_SHORT).show();
         tvLog.setText("Kirim $GET* ke LGT... tunggu MAPR...");
-        sendCmd("$GET*");
+        sendCmd("$GET*\n");
     }
     void sendSave(){ 
         Toast.makeText(this,"SAVE MAP $SAVE*...",Toast.LENGTH_SHORT).show();
         tvLog.setText("Kirim $SAVE* ke LGT...");
-        sendCmd("$SAVE*");
+        sendCmd("$SAVE*\n");
     }
     void sendSet(int r,int c,int val){ 
         tvRowCol.setText("SET R"+r+" C"+c+" = "+val+" deg");
