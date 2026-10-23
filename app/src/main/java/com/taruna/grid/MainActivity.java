@@ -159,18 +159,3 @@ public class MainActivity extends Activity {
 
     @Override protected void onDestroy(){ super.onDestroy(); isLive=false; try{ if(conn!=null) conn.close(); }catch(Exception e){} try{ unregisterReceiver(usbReceiver); }catch(Exception e){} }
 }
-;
-                            if(p[i].equals("ADV")) adv=Integer.parseInt(p[i+1]);
-                        }
-                        tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm); highlightCell(rpm,map);
-                    }else if(clean.startsWith("$MAPR,")){
-                        String[] p=clean.replace("*","").split(","); int row=Integer.parseInt(p[1]); for(int c=0;c<16 && c+2<p.length;c++){ mapData[row][c]=Integer.parseInt(p[c+2]); cellViews[row][c].setText(String.valueOf(mapData[row][c])); }
-                    }
-                }catch(Exception e){}
-            }
-        });
-    }
-
-    @Override protected void onDestroy(){ super.onDestroy(); isLive=false; try{ if(conn!=null) conn.close(); }catch(Exception e){} try{ unregisterReceiver(usbReceiver); }catch(Exception e){} }
-}
-                                     
