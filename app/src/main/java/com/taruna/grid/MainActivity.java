@@ -106,16 +106,16 @@ public class MainActivity extends Activity {
     void sendGet(){ 
         Toast.makeText(this,"GET MAP $GET*...",Toast.LENGTH_SHORT).show();
         tvLog.setText("Kirim $GET* ke LGT... tunggu MAPR...");
-        sendCmd("$GET*"); 
+        sendCmd("$GET*");
     }
     void sendSave(){ 
         Toast.makeText(this,"SAVE MAP $SAVE*...",Toast.LENGTH_SHORT).show();
         tvLog.setText("Kirim $SAVE* ke LGT...");
-        sendCmd("$SAVE*"); 
+        sendCmd("$SAVE*");
     }
     void sendSet(int r,int c,int val){ 
         tvRowCol.setText("SET R"+r+" C"+c+" = "+val+" deg");
-        StringBuilder sb=new StringBuilder(); sb.append("$SET,"); sb.append(r); sb.append(","); sb.append(c); sb.append(","); sb.append(val); sb.append("*\n"); sendCmd(sb.toString()); 
+        sendCmd("$SET,"+r+","+c+","+val+"*\n");
     }
 
     void connect(){
@@ -137,12 +137,10 @@ public class MainActivity extends Activity {
             if(!um.hasPermission(dev)){ um.requestPermission(dev,permissionIntent); tvLog.setText("Minta Permission..."); return; }
             conn=um.openDevice(dev); if(conn==null){ tvLog.setText("Gagal open"); return; }
             for(int i=0;i<dev.getInterfaceCount();i++) try{ conn.claimInterface(dev.getInterface(i),true); }catch(Exception e){}
-            // SET BAUD 115200 CDC ACM
             try{
-                // SET_LINE_CODING 115200 8N1
                 byte[] lineCoding = new byte[]{ (byte)0x00, (byte)0xC2, (byte)0x01, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x08 };
                 conn.controlTransfer(0x21, 0x20, 0, 0, lineCoding, lineCoding.length, 1000);
-                conn.controlTransfer(0x21, 0x22, 3, 0, null, 0, 1000); // DTR+RTS ON
+                conn.controlTransfer(0x21, 0x22, 3, 0, null, 0, 1000);
             }catch(Exception e){}
             epIn=null; epOut=null;
             for(int i=0;i<dev.getInterfaceCount();i++){ UsbInterface intf=dev.getInterface(i); for(int j=0;j<intf.getEndpointCount();j++){ UsbEndpoint ep=intf.getEndpoint(j); if(ep.getType()==UsbConstants.USB_ENDPOINT_XFER_BULK){ if(ep.getDirection()==UsbConstants.USB_DIR_IN) epIn=ep; else epOut=ep; } } }
@@ -160,9 +158,7 @@ public class MainActivity extends Activity {
             public void run(){
                 try{
                     if(line==null) return;
-                    String clean=line.trim().replace("
-","").replace("
-","");
+                    String clean=line.trim().replace("\r","").replace("\n","");
                     int idxDollar=clean.indexOf("$");
                     if(idxDollar>=0) clean=clean.substring(idxDollar);
                     if(clean.length()<5) return;
@@ -176,17 +172,11 @@ public class MainActivity extends Activity {
                             if(p[i].equals("ADV")) try{ adv=Integer.parseInt(p[i+1]); }catch(Exception e){}
                         }
                         tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm+" RPM"); 
-                        // jangan timpa tvLog kalau lagi nunggu MAPR
-                        if(!tvLog.getText().toString().contains("MAP ROW") && !tvLog.getText().toString().contains("Kirim $GET")) {
-                            // tvLog.setText(clean); // jangan timpa biar MAPR keliatan
-                        }
                         highlightCell(rpm,map);
                     }else if(clean.contains("$MAPR,")){
                         try{
                             String c2=clean.substring(clean.indexOf("$MAPR,"));
-                            String[] p=c2.replace("*","").replace("
-","").replace("
-","").split(","); 
+                            String[] p=c2.replace("*","").replace("\r","").replace("\n","").split(","); 
                             int row=Integer.parseInt(p[1]); 
                             StringBuilder logB=new StringBuilder();
                             for(int c=0;c<16 && c+2<p.length;c++){ 
@@ -205,7 +195,6 @@ public class MainActivity extends Activity {
                             if(row==0) Toast.makeText(MainActivity.this,"GET ROW 0 OK! "+mapData[0][0]+","+mapData[0][1],Toast.LENGTH_SHORT).show();
                             if(row==15) {
                                 Toast.makeText(MainActivity.this,"GET MAP SELESAI 16 ROW!",Toast.LENGTH_LONG).show();
-                                // reset warna cell jadi normal
                                 for(int r=0;r<16;r++) for(int c=0;c<16;c++) try{ cellViews[r][c].setBackgroundColor(0xFF111111); }catch(Exception e){}
                                 highlightCell(800,15);
                             }
@@ -220,9 +209,6 @@ public class MainActivity extends Activity {
                     }else if(clean.contains("V7.4")){
                         tvStatus.setText(clean.replace("*",""));
                         tvLog.setText(clean);
-                    }else{
-                        // debug line lain
-                        tvLog.setText("DBG: "+clean);
                     }
                 }catch(Exception e){ tvLog.setText("PARSE ERR "+e.getMessage()); }
             }
