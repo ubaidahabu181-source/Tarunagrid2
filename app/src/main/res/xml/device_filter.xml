@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- QINHENG CH340 VID 6790 = 0x1A86 PID 7523 = 0x7523 -->
-    <usb-device vendor-id="6790" product-id="7523" />
-    <!-- Cadangan PID lain CH340 -->
+    <!-- CH340 / CH341 USB to Serial -->
     <usb-device vendor-id="6790" product-id="29987" />
+    <!-- 1a86:7523 = 6790:29987 -->
+    <usb-device vendor-id="1027" product-id="24577" />
+    <!-- FTDI fallback -->
 </resources>
