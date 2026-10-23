@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- CH340 / CH341 / CP2102 / FTDI semua LGT8F -->
-    <usb-device vendor-id="6790" product-id="29987" /> <!-- 0x1A86 0x7523 CH340 -->
-    <usb-device vendor-id="1027" product-id="24577" /> <!-- FTDI -->
-    <usb-device vendor-id="4292" product-id="60000" /> <!-- CP2102 -->
-    <usb-device vendor-id="1155" product-id="22336" />
-</resources>
