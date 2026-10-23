@@ -104,14 +104,14 @@ public class MainActivity extends Activity {
     }
 
     void sendGet(){ 
-        Toast.makeText(this,"GET MAP...",Toast.LENGTH_SHORT).show();
-        tvLog.setText("Kirim $GET* ke LGT...");
-        StringBuilder sb=new StringBuilder(); sb.append("$GET*"); sb.append("\n"); sendCmd(sb.toString()); 
+        Toast.makeText(this,"GET MAP $GET*...",Toast.LENGTH_SHORT).show();
+        tvLog.setText("Kirim $GET* ke LGT... tunggu MAPR...");
+        sendCmd("$GET*"); 
     }
     void sendSave(){ 
-        Toast.makeText(this,"SAVE MAP ke EEPROM...",Toast.LENGTH_SHORT).show();
+        Toast.makeText(this,"SAVE MAP $SAVE*...",Toast.LENGTH_SHORT).show();
         tvLog.setText("Kirim $SAVE* ke LGT...");
-        StringBuilder sb=new StringBuilder(); sb.append("$SAVE*"); sb.append("\n"); sendCmd(sb.toString()); 
+        sendCmd("$SAVE*"); 
     }
     void sendSet(int r,int c,int val){ 
         tvRowCol.setText("SET R"+r+" C"+c+" = "+val+" deg");
@@ -160,8 +160,9 @@ public class MainActivity extends Activity {
             public void run(){
                 try{
                     if(line==null) return;
-                    tvLog.setText(line.trim());
-                    String clean=line.trim().replace("\r","").replace("\n","");
+                    String clean=line.trim().replace("
+","").replace("
+","");
                     int idxDollar=clean.indexOf("$");
                     if(idxDollar>=0) clean=clean.substring(idxDollar);
                     if(clean.length()<5) return;
@@ -174,32 +175,56 @@ public class MainActivity extends Activity {
                             if(p[i].equals("MAP")) try{ map=Integer.parseInt(p[i+1]); }catch(Exception e){}
                             if(p[i].equals("ADV")) try{ adv=Integer.parseInt(p[i+1]); }catch(Exception e){}
                         }
-                        tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm+" RPM"); highlightCell(rpm,map);
+                        tvRpm.setText(String.valueOf(rpm)); tvMap.setText(map+" kPa"); tvAdv.setText(adv+" deg"); tvStatus.setText("LIVE "+rpm+" RPM"); 
+                        // jangan timpa tvLog kalau lagi nunggu MAPR
+                        if(!tvLog.getText().toString().contains("MAP ROW") && !tvLog.getText().toString().contains("Kirim $GET")) {
+                            // tvLog.setText(clean); // jangan timpa biar MAPR keliatan
+                        }
+                        highlightCell(rpm,map);
                     }else if(clean.contains("$MAPR,")){
                         try{
                             String c2=clean.substring(clean.indexOf("$MAPR,"));
-                            String[] p=c2.replace("*","").replace("\r","").replace("\n","").split(","); 
+                            String[] p=c2.replace("*","").replace("
+","").replace("
+","").split(","); 
                             int row=Integer.parseInt(p[1]); 
+                            StringBuilder logB=new StringBuilder();
                             for(int c=0;c<16 && c+2<p.length;c++){ 
                                 try{ 
                                     int v=Integer.parseInt(p[c+2].trim());
                                     mapData[row][c]=v; 
-                                    if(row>=0 && row<16 && c>=0 && c<16) cellViews[row][c].setText(String.valueOf(v));
+                                    if(row>=0 && row<16 && c>=0 && c<16) {
+                                        cellViews[row][c].setText(String.valueOf(v));
+                                        cellViews[row][c].setBackgroundColor(0xFF003300);
+                                    }
+                                    logB.append(v).append(",");
                                 }catch(Exception e){}
                             }
-                            tvLog.setText("MAP ROW "+row+" OK: "+mapData[row][0]+","+mapData[row][1]+"...");
-                            if(row==0) Toast.makeText(MainActivity.this,"GET MAP ROW 0 OK!",Toast.LENGTH_SHORT).show();
-                        }catch(Exception e){ tvLog.setText("MAPR ERR "+e.getMessage()); }
+                            tvLog.setText("MAP ROW "+row+" OK: "+logB.toString());
+                            tvRowCol.setText("GET ROW "+row+" = "+mapData[row][0]+","+mapData[row][1]+","+mapData[row][2]+"... OK!");
+                            if(row==0) Toast.makeText(MainActivity.this,"GET ROW 0 OK! "+mapData[0][0]+","+mapData[0][1],Toast.LENGTH_SHORT).show();
+                            if(row==15) {
+                                Toast.makeText(MainActivity.this,"GET MAP SELESAI 16 ROW!",Toast.LENGTH_LONG).show();
+                                // reset warna cell jadi normal
+                                for(int r=0;r<16;r++) for(int c=0;c<16;c++) try{ cellViews[r][c].setBackgroundColor(0xFF111111); }catch(Exception e){}
+                                highlightCell(800,15);
+                            }
+                        }catch(Exception e){ tvLog.setText("MAPR ERR "+e.getMessage()+" line:"+clean); }
                     }else if(clean.contains("$MAPDONE")){
-                        Toast.makeText(MainActivity.this,"GET MAP SELESAI! 16 ROW!",Toast.LENGTH_LONG).show();
-                        tvLog.setText("GET MAP DONE - Grid terisi!");
+                        Toast.makeText(MainActivity.this,"GET MAP SELESAI! 16 ROW! MAPDONE!",Toast.LENGTH_LONG).show();
+                        tvLog.setText("GET MAP DONE - Grid terisi penuh!");
+                        tvRowCol.setText("MAP DONE - 16x16 terisi! Klik sel buat edit!");
                     }else if(clean.contains("SAVE_DONE")){
                         Toast.makeText(MainActivity.this,"SAVE EEPROM OK! LED kedip 3x",Toast.LENGTH_LONG).show();
-                        tvLog.setText("SAVE DONE!");
+                        tvLog.setText("SAVE DONE! EEPROM tersimpan!");
                     }else if(clean.contains("V7.4")){
                         tvStatus.setText(clean.replace("*",""));
+                        tvLog.setText(clean);
+                    }else{
+                        // debug line lain
+                        tvLog.setText("DBG: "+clean);
                     }
-                }catch(Exception e){}
+                }catch(Exception e){ tvLog.setText("PARSE ERR "+e.getMessage()); }
             }
         });
     }
