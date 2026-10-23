@@ -1,9 +1,24 @@
-plugins { id 'com.android.application' }
+plugins {
+    id 'com.android.application'
+}
+
 android {
     namespace 'com.taruna.grid'
     compileSdk 34
-    defaultConfig { applicationId "com.taruna.grid"; minSdk 24; targetSdk 34; versionCode 1; versionName "1.0" }
-    buildTypes { debug { minifyEnabled false } release { minifyEnabled false } }
-    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+
+    defaultConfig {
+        applicationId "com.taruna.grid"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
 }
-dependencies {}
+
+dependencies {
+}
